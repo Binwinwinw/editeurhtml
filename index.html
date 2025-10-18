@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Éditeur de Code en Temps Réel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Chargement de CodeMirror depuis CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/theme/dracula.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/theme/mdn-like.min.css">
+
+<!-- Styles de l'application -->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <span>🚀 Éditeur HTML Temps Réel</span>
+    <div class="controls">
+  <button id="themeToggle" title="Basculer le thème sombre/clair" aria-label="Basculer le thème">🌙</button>
+  <button id="pasteCode" title="Coller dans l'éditeur actif" aria-label="Coller du code">📥</button>
+  <button id="copyCode" title="Copier le code actuel" aria-label="Copier le code">📋</button>
+  <button id="clearCode" title="Effacer le code de la page active" aria-label="Effacer la page active">🗑️</button>
+  <button id="clearAllCode" title="Effacer toutes les pages" aria-label="Effacer toutes les pages">🧹</button>
+  <button id="saveCode" title="Sauvegarder le fichier" aria-label="Sauvegarder">💾</button>
+    </div>
+  </header>
+
+
+<div class="main">
+  <div id="editorPane">
+    <div class="pane-header">
+      <span>Votre CODE</span>
+      <div class="tabs" role="tablist" aria-label="Éditeurs de code">
+        <div class="tab active" data-editor="html" role="tab" aria-selected="true" aria-controls="htmlEditor" tabindex="0">HTML</div>
+        <div class="tab" data-editor="css" role="tab" aria-selected="false" aria-controls="cssEditor" tabindex="-1">CSS</div>
+        <div class="tab" data-editor="js" role="tab" aria-selected="false" aria-controls="jsEditor" tabindex="-1">JS</div>
+      </div>
+    </div>
+          <div class="editor-container">
+  <textarea id="htmlEditor" class="editor-textarea active" role="tabpanel" aria-labelledby="html-tab" aria-label="Éditeur HTML"></textarea>
+  <textarea id="cssEditor" class="editor-textarea" role="tabpanel" aria-labelledby="css-tab" aria-label="Éditeur CSS"></textarea>
+  <textarea id="jsEditor" class="editor-textarea" role="tabpanel" aria-labelledby="js-tab" aria-label="Éditeur JavaScript"></textarea>
+      </div>
+  </div>
+  <div id="resizer"></div>
+  <div id="previewPane">
+    <div class="pane-header">APERÇU</div>
+  <iframe id="viewer" title="Aperçu" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</div>
+<div id="status">Prêt - Utilisez les onglets pour naviguer entre HTML, CSS et JS</div>
+
+<!-- Modal pour la sauvegarde -->
+  <!-- Modal de sauvegarde -->
+  <div id="saveModal" class="modal" role="dialog" aria-labelledby="modal-title" aria-modal="true" style="display: none;">
+    <div class="modal-content">
+      <h3 id="modal-title">Sauvegarder le fichier</h3>
+      <input type="text" id="filename" placeholder="Nom du fichier" aria-label="Nom du fichier à sauvegarder" required>
+      <div class="modal-buttons">
+        <button id="confirmSaveBtn">Sauvegarder</button>
+        <button id="cancelSaveBtn">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+<!-- Chargement de CodeMirror depuis CDN -->
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+
+<!-- Chargement des modules JS -->
+<script type="module" src="main.js"></script>
+</body>
+</html>

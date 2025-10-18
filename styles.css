@@ -1,0 +1,1231 @@
+@keyframes notificationSlideOut {
+  from { transform: translateY(0); opacity: 0.95; }
+  to { transform: translateY(-40px); opacity: 0; }
+}
+/* Notification animée */
+.notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 16px var(--shadow);
+  font-size: 15px;
+  font-weight: 600;
+  z-index: 2000;
+  opacity: 0.95;
+  animation: notificationSlideIn 0.3s ease-out;
+}
+
+.notification.success { background: var(--success); }
+.notification.error { background: var(--error); }
+.notification.warning { background: var(--warning); }
+
+@keyframes notificationSlideIn {
+  from { transform: translateY(-40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 0.95; }
+}
+/* Forcer la sélection de texte partout */
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: text !important; }
+.CodeMirror-cursor { border-left: 2px solid var(--fg) !important; animation: blink-cursor 1s steps(1) infinite; }
+@keyframes blink-cursor { 0%,50%{opacity:1;} 50.01%,100%{opacity:0;} }
+:root {
+  --bg: #1e1e1e;
+  --fg: #f8f8f2;
+  --accent: #3498db;
+  --accent-hover: #2980b9;
+  --border: #444;
+  --border-light: #555;
+  --header-bg: #2c3e50;
+  --tab-bg: #252525;
+  --tab-active-bg: #1e1e1e;
+  --success: #27ae60;
+  --warning: #f39c12;
+  --error: #e74c3c;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  
+  /* Animation variables */
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.3s ease-out;
+  --transition-slow: 0.5s ease-out;
+  --border-radius: 6px;
+  --border-radius-small: 4px;
+}
+
+body.light {
+  --bg: #ffffff;
+  --fg: #2c3e50;
+  --border: #e1e8ed;
+  --border-light: #f1f3f4;
+  --header-bg: #34495e;
+  --tab-bg: #f8f9fa;
+  --tab-active-bg: #ffffff;
+  --shadow: rgba(0, 0, 0, 0.08);
+  --shadow-light: rgba(0, 0, 0, 0.04);
+}
+
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+body, html { height: 100%; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif; background: var(--bg); color: var(--fg); overflow: hidden; }
+
+header { 
+  background: linear-gradient(135deg, var(--header-bg) 0%, #34495e 100%);
+  color: #fff; 
+  padding: 12px 16px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  height: 48px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--shadow);
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-normal);
+}
+
+header > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 16px;
+}
+
+.controls { 
+  display: flex; 
+  gap: 8px; 
+  align-items: center;
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+select, button { 
+  padding: 6px 10px; 
+  border: none; 
+  border-radius: 4px; 
+  cursor: pointer; 
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+}
+
+button { 
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  color: #fff; 
+  min-width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 4px var(--shadow-light);
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow);
+  background: var(--accent-hover);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px var(--shadow-light);
+}
+
+/* Effet ripple sur les boutons */
+button .ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple-effect 0.5s linear;
+  background: rgba(255,255,255,0.4);
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes ripple-effect {
+  to {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--transition-normal);
+}
+
+button:hover::before {
+  left: 100%;
+}
+
+.main { 
+  display: flex; 
+  height: calc(100vh - 40px); 
+  position: relative;
+  overflow: hidden;
+  overflow: hidden;
+}
+
+#editorPane, #previewPane { 
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+  height: 100%;
+  overflow: auto;
+}
+
+.CodeMirror { 
+  height: 100%; 
+  font-size: 14px; 
+  flex: 1;
+}
+
+#viewer { 
+  border: none;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  min-height: 200px;
+  display: block;
+  overflow: auto;
+}
+
+#resizer { 
+  width: 4px; 
+  background: var(--border); 
+  cursor: col-resize;
+  position: relative;
+  z-index: 10;
+  transition: all var(--transition-fast);
+  border-radius: 2px;
+}
+
+#resizer::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 40px;
+  background: var(--border-light);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+#resizer:hover {
+  background: var(--accent);
+  width: 6px;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+#resizer:hover::before {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#status { 
+  position: absolute; 
+  bottom: 12px; 
+  left: 16px; 
+  font-size: 12px; 
+  color: var(--fg); 
+  background: var(--shadow);
+  padding: 6px 12px;
+  border-radius: var(--border-radius);
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  transition: all var(--transition-normal);
+  opacity: 0.9;
+}
+
+#status:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.pane-header {
+  background: linear-gradient(135deg, var(--tab-bg) 0%, var(--border-light) 100%);
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(5px);
+  transition: all var(--transition-normal);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: var(--tab-bg);
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.7;
+  transition: all var(--transition-fast);
+  position: relative;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent);
+  transition: width var(--transition-normal);
+}
+
+.tab:hover {
+  opacity: 0.9;
+  background: var(--border-light);
+  transform: translateY(-1px);
+}
+
+.tab.active {
+  opacity: 1;
+  background: var(--tab-active-bg);
+  box-shadow: 0 -2px 8px var(--shadow-light);
+  z-index: 1;
+}
+
+.tab.active::after {
+  width: 100%;
+}
+
+/* CORRECTION AFFICHAGE DES ÉDITEURS */
+.editor-container {
+  display: block !important;
+  height: 100% !important;
+  position: relative;
+  flex: 1;
+}
+
+/* Masquer tous les éditeurs CodeMirror sauf l'actif */
+.editor-container .CodeMirror {
+  display: none !important;
+}
+.editor-container .CodeMirror.active {
+  display: block !important;
+}
+}
+
+/* Afficher tous les éditeurs CodeMirror */
+.editor-container .CodeMirror {
+  display: block !important;
+  height: 100% !important;
+}
+
+/* Alternative : si vous voulez vraiment masquer les éditeurs inactifs */
+/*
+.editor-container .CodeMirror {
+  display: none !important;
+  height: 100% !important;
+}
+
+.editor-container .CodeMirror:first-child {
+  display: block !important;
+}
+*/
+
+/* Modal pour la sauvegarde */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  animation: modalFadeIn var(--transition-normal) ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
+}
+
+.modal-content {
+  background: linear-gradient(135deg, var(--bg) 0%, var(--tab-bg) 100%);
+  padding: 24px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 20px 40px var(--shadow);
+  width: 400px;
+  max-width: 90%;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  animation: modalSlideIn var(--transition-normal) ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablette */
+@media (max-width: 768px) {
+  header {
+    padding: 8px 12px;
+    height: 44px;
+  }
+  
+  header > span {
+    font-size: 14px;
+  }
+  
+  .controls {
+    gap: 6px;
+  }
+  
+  button {
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 13px;
+  }
+  
+  .main {
+    height: calc(100vh - 44px);
+  }
+  
+  .tab {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  
+  .pane-header {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .main {
+    flex-direction: column;
+  }
+  
+  #editorPane,
+  #previewPane {
+    flex: 1 1 50%;
+    min-height: 0;
+  }
+  
+  #resizer {
+    width: 100%;
+    height: 4px;
+    cursor: row-resize;
+  }
+  
+  #resizer::before {
+    width: 40px;
+    height: 2px;
+    top: 50%;
+    left: 50%;
+  }
+  
+  header > span {
+    display: none;
+  }
+  
+  .controls {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 0 auto;
+  }
+  
+  #status {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    margin: 8px;
+    text-align: center;
+  }
+}
+
+/* ===== ACCESSIBILITÉ ===== */
+
+/* Focus visible pour navigation clavier */
+button:focus-visible,
+.tab:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.2);
+}
+
+/* Améliorer les contrastes */
+@media (prefers-contrast: high) {
+  :root {
+    --border: #666;
+    --border-light: #777;
+  }
+  
+  body.light {
+    --border: #999;
+    --border-light: #aaa;
+  }
+}
+
+/* Respecter les préférences de mouvement réduit */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Améliorer la lisibilité */
+.CodeMirror {
+  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+  line-height: 1.5;
+  color: #fff !important;
+  background: #1e1e1e !important;
+  height: 100% !important;
+  min-height: 120px;
+}
+.CodeMirror-scroll,
+.CodeMirror-lines,
+.CodeMirror pre,
+.CodeMirror-line {
+  color: #fff !important;
+  background: #1e1e1e !important;
+  padding-left: 3.5em !important; /* espace pour les numéros de ligne */
+  box-sizing: border-box;
+}
+.CodeMirror-cursor {
+  border-left: 2px solid #fff !important;
+}
+.CodeMirror-selected {
+  background: #444 !important;
+}
+.editor-container, .editor-textarea { height: 100% !important; min-height: 120px; }
+
+/* États de chargement */
+.loading {
+  opacity: 0.6;
+  /* pointer-events: none;  <-- Ne pas bloquer l'éditeur, sauf overlay */
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Tooltips accessibles */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--header-bg);
+  color: white;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-small);
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1001;
+  box-shadow: 0 2px 8px var(--shadow);
+  animation: tooltipFadeIn var(--transition-fast) ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ===== MICRO-INTERACTIONS ===== */
+
+/* Animation de pulsation pour les éléments actifs */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Animation pour les notifications */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--success);
+  color: white;
+  padding: 12px 16px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 1002;
+  animation: notificationSlideIn var(--transition-normal) ease-out;
+}
+
+.notification.error {
+  background: var(--error);
+}
+
+.notification.warning {
+  background: var(--warning);
+}
+
+@keyframes notificationSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Effet de satisfaction lors de la sauvegarde */
+.save-success {
+  animation: saveSuccess var(--transition-slow) ease-out;
+}
+
+@keyframes saveSuccess {
+  0% {
+    transform: scale(1);
+    background: var(--accent);
+  }
+  50% {
+    transform: scale(1.1);
+    background: var(--success);
+  }
+  100% {
+    transform: scale(1);
+    background: var(--accent);
+  }
+}
+
+/* Amélioration visuelle des inputs */
+.modal input {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--border-radius);
+  background-color: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  transition: all var(--transition-fast);
+}
+
+.modal input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  outline: none;
+}
+
+.modal input:hover {
+  border-color: var(--border-light);
+}
+
+/* Amélioration des boutons de la modal */
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modal-buttons button {
+  padding: 10px 20px;
+  min-width: auto;
+}
+
+#cancelSaveBtn {
+  background: var(--border);
+  color: var(--fg);
+}
+
+#cancelSaveBtn:hover {
+  background: var(--border-light);
+}
+
+/* États de réussite et d'erreur */
+.success-state {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1) !important;
+}
+
+.error-state {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
+}
+
+/* ===== OPTIMISATIONS PERFORMANCE ===== */
+
+/* Optimisation du rendu */
+.CodeMirror,
+#viewer,
+.main,
+.editor-container {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* Optimisation des animations */
+button,
+.tab,
+#resizer,
+.modal {
+  will-change: transform, opacity;
+}
+
+/* Préchargement des polices */
+@font-face {
+  font-family: 'Fira Code';
+  font-display: swap;
+}
+
+/* Optimisation de la scrollbar */
+.CodeMirror-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.CodeMirror-scroll::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+.CodeMirror-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.CodeMirror-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* Amélioration de la performance pour les grandes quantités de code */
+.CodeMirror-lines {
+  padding: 8px 0;
+}
+
+.CodeMirror-line {
+  padding: 0 4px;
+}
+
+/* Optimisation finale */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg);
+}
+
+.modal h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: var(--fg);
+}
+
+.modal input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--fg);
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-buttons button {
+  padding: 8px 15px;
+}
+
+/* CORRECTIONS CSS POUR L'ÉDITEUR DE CODE */
+
+/* === CORRECTIONS CRITIQUES === */
+
+
+/* Correction pour les textareas cachés */
+.editor-textarea {
+  display: none !important; /* Cacher les textareas originaux */
+}
+
+/* === AMÉLIORATIONS VISUELLES === */
+
+/* Header amélioré */
+header {
+  background: linear-gradient(135deg, var(--header-bg) 0%, #34495e 100%);
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 20px var(--shadow);
+}
+
+header > span {
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Contrôles améliorés */
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.controls button {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  transition: all 0.2s ease;
+}
+
+.controls button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+/* Panneaux améliorés */
+#editorPane, #previewPane {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+  background: var(--bg);
+}
+
+/* En-têtes des panneaux */
+.pane-header {
+  background: linear-gradient(135deg, var(--tab-bg) 0%, var(--border-light) 100%);
+  padding: 15px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Onglets améliorés */
+.tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--border);
+  border-radius: 8px 8px 0 0;
+  padding: 4px 4px 0 4px;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: var(--tab-bg);
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  position: relative;
+  color: var(--fg);
+}
+
+.tab:hover {
+  background: var(--border-light);
+  transform: translateY(-1px);
+}
+
+.tab.active {
+  background: var(--tab-active-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+/* === CORRECTIONS RESPONSIVE === */
+
+/* Tablette */
+@media (max-width: 1024px) {
+  .main {
+    flex-direction: column;
+    height: calc(100vh - 60px);
+  }
+  
+  #editorPane, #previewPane {
+    flex: 1 1 50%;
+    min-height: 300px;
+  }
+  
+  #resizer {
+    width: 100%;
+    height: 8px;
+    cursor: row-resize;
+  }
+  
+  #resizer::before {
+    width: 60px;
+    height: 4px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  header {
+    padding: 10px 15px;
+    height: 50px;
+  }
+  
+  header > span {
+    font-size: 1rem;
+  }
+  
+  .controls button {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 1rem;
+  }
+  
+  .pane-header {
+    padding: 12px 15px;
+    font-size: 0.8rem;
+  }
+  
+  .tab {
+    padding: 8px 15px;
+    font-size: 0.75rem;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 20px;
+    padding: 20px;
+  }
+}
+
+/* Très petit mobile */
+@media (max-width: 480px) {
+  header > span {
+    display: none;
+  }
+  
+  .controls {
+    justify-content: space-around;
+    width: 100%;
+  }
+  
+  .tabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+  }
+}
+
+/* === CORRECTIONS CODE MIRROR === */
+
+/* Assurer la visibilité du texte dans CodeMirror */
+.CodeMirror-line {
+  color: var(--fg) !important;
+}
+
+.CodeMirror-linenumber {
+  color: #666 !important;
+}
+
+/* Curseur plus visible */
+.CodeMirror { font-family: 'Fira Code','Monaco','Menlo','Consolas',monospace; line-height: 1.5; color: var(--fg) !important; background: var(--bg) !important; height: 100% !important; min-height: 120px; }
+.CodeMirror-scroll,.CodeMirror-lines,.CodeMirror pre,.CodeMirror-line { color: var(--fg) !important; background: var(--bg) !important; }
+.CodeMirror-selected { background: var(--border) !important; }
+.CodeMirror-vscrollbar::-webkit-scrollbar-track,
+.CodeMirror-hscrollbar::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+.CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
+.CodeMirror-hscrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.CodeMirror-vscrollbar::-webkit-scrollbar-thumb:hover,
+.CodeMirror-hscrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* === CORRECTIONS MODAL === */
+
+.modal-content {
+  background: linear-gradient(135deg, var(--bg) 0%, var(--tab-bg) 100%);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 450px;
+  max-width: 90vw;
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.modal-content h3 {
+  margin: 0 0 20px 0;
+  color: var(--fg);
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.modal input {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--tab-bg);
+  color: var(--fg);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.modal input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  outline: none;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-buttons button {
+  padding: 12px 24px;
+  min-width: 100px;
+  font-weight: 600;
+}
+
+/* === ÉTATS ET ANIMATIONS === */
+
+/* Statut amélioré */
+#status {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: var(--header-bg);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  max-width: 300px;
+}
+
+/* Notifications */
+.notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: var(--success);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  z-index: 1002;
+  animation: notificationSlideIn 0.3s ease-out;
+  font-weight: 500;
+}
+
+.notification.error {
+  background: var(--error);
+}
+
+.notification.warning {
+  background: var(--warning);
+}
+
+/* === CORRECTIONS D'ACCESSIBILITÉ === */
+
+/* Focus visible */
+button:focus-visible,
+.tab:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(52, 152, 219, 0.2);
+}
+
+/* Réduction des animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* === CORRECTIONS DE PERFORMANCE === */
+
+/* Optimisation des transitions */
+.CodeMirror-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prévention du layout shift */
+.main {
+  contain: layout style paint;
+}
+
+/* === CORRECTIONS FINALES === */
+
+/* Assurer que l'iframe prend tout l'espace */
+#viewer {
+  flex: 1;
+  border: none;
+  background: white;
+}
+
+/* Correction du thème clair */
+body.light .CodeMirror {
+  background: #ffffff !important;
+  color: #2c3e50 !important;
+}
+
+body.light .CodeMirror-line {
+  color: #2c3e50 !important;
+}
