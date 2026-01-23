@@ -1,0 +1,28 @@
+# Fichiers de config locaux à ne pas versionner
+.env
+.env.*
+# Fichiers temporaires ou de cache
+*.log
+*.tmp
+.DS_Store
+node_modules/
+# Sauvegardes et fichiers sensibles
+.backups
+.htaccess
+.vscode/
+.ftpconfig
+.env.local
+.env.production
+.env.development
+.env.test
+# Fichiers système
+.idea/
+.history/
+.sass-cache/
+.cache/
+.tmp/
+# Archives exportées
+*.zip
+# Dossiers de build éventuels
+/dist/
+/build/

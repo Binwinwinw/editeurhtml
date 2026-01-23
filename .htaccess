@@ -1,30 +1,40 @@
 
-# Sécurité maximale pour éditeur HTML/CSS/JS
-# Désactive l’exécution de tout code serveur
-RemoveHandler .php .phtml .pl .py .cgi .asp .aspx .jsp
-RemoveType .php .phtml .pl .py .cgi .asp .aspx .jsp
 
-# Désactive l’exécution de scripts côté client non autorisés
+# --- Sécurité hybride local/prod ---
+# Désactive l’exécution de scripts serveur (sauf si besoin localement)
+<IfModule mod_mime.c>
+  RemoveHandler .php .phtml .pl .py .cgi .asp .aspx .jsp
+  RemoveType .php .phtml .pl .py .cgi .asp .aspx .jsp
+</IfModule>
+
+# Bloque l’accès direct aux scripts serveur (Apache 2.4+)
 <FilesMatch "\.(php|phtml|pl|py|cgi|asp|aspx|jsp)$">
-  Order allow,deny
-  Deny from all
+  <If "%{REMOTE_ADDR} != '127.0.0.1' && %{REMOTE_ADDR} != '::1'">
+    Require all denied
+  </If>
 </FilesMatch>
+
 
 # Désactive l’indexation des répertoires
 Options -Indexes
 
-# Protection XSS, clickjacking, et content sniffing
-Header set X-Content-Type-Options "nosniff"
-Header set X-Frame-Options "DENY"
-Header set X-XSS-Protection "1; mode=block"
-Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net; object-src 'none'; frame-ancestors 'none'; base-uri 'self';"
 
-# Compression GZIP
+# Protection XSS, clickjacking, content sniffing (mod_headers requis)
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; connect-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; object-src 'none'; frame-ancestors 'none'; base-uri 'self';"
+</IfModule>
+
+
+# Compression GZIP (mod_deflate requis)
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
 </IfModule>
 
-# Cache statique pour les assets
+
+# Cache statique pour les assets (mod_expires requis)
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType text/html "access plus 1 hour"
@@ -33,21 +43,25 @@ Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsaf
   ExpiresByType image/svg+xml "access plus 1 month"
 </IfModule>
 
-# Désactive l’upload et l’exécution de fichiers dangereux
+
+# Désactive l’upload et l’exécution de fichiers dangereux (Apache 2.4+)
 <FilesMatch "\.(exe|sh|bat|msi|dll|com|scr|jar)$">
-  Order allow,deny
-  Deny from all
+  Require all denied
 </FilesMatch>
 
-# Désactive les méthodes HTTP dangereuses
+
+# Désactive les méthodes HTTP dangereuses (Apache 2.4+)
 <LimitExcept GET POST HEAD>
-  Deny from all
+  Require all denied
 </LimitExcept>
 
-# Désactive le hotlinking des assets
-SetEnvIf Referer ".*" local_ref=1
-<FilesMatch "\.(jpg|jpeg|png|gif|svg|webp|css|js)$">
-  SetEnvIf local_ref 1
-  Order Allow,Deny
-  Allow from env=local_ref
-</FilesMatch>
+
+# Désactive le hotlinking des assets (sauf localhost)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Autorise localhost et accès direct
+  RewriteCond %{HTTP_REFERER} !^$
+  RewriteCond %{HTTP_REFERER} !^https?://(localhost|127\.0\.0\.1) [NC]
+  RewriteCond %{HTTP_REFERER} !^https?://votre-domaine\.tld [NC]
+  RewriteRule \.(jpg|jpeg|png|gif|svg|webp|css|js)$ - [F,NC]
+</IfModule>
