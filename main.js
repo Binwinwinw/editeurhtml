@@ -9,14 +9,8 @@ const INIT_HTML = `<!DOCTYPE html>
     <meta charset="UTF-8">
     <title>Editeur MultiLanguage</title>
     <style>
-        body {
-            font-family: system-ui;
-            padding: 2rem;
-            background: #f0f0f0;
-        }
-        h1 {
-            color: #3498db;
-        }
+        body { font-family: system-ui; padding: 2rem; background: #f0f0f0; }
+        h1 { color: #3498db; }
     </style>
 </head>
 <body>
@@ -25,48 +19,20 @@ const INIT_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const INIT_CSS  = `/* Votre CSS ici */
-body {
-    font-family: 'Segoe UI', sans-serif;
-    margin: 0;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    min-height: 100vh;
-}
+const INIT_CSS = `/* Votre CSS ici */
+body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; }
 
-h1 {
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-}`;
+h1 { text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }`;
 
-const INIT_JS   = `// Votre JavaScript ici
+const INIT_JS = `// Votre JavaScript ici
 console.log('Éditeur HTML Temps Réel - Prêt !');
 
-// ----------  ÉLÉMENTS GLOBAUX  ----------
-let htmlEditor = null;
-let cssEditor = null;
-let jsEditor = null;
-let currentTheme = 'dracula';
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Page chargée');
-    
-    // Exemple d'interaction
-    const btn = document.createElement('button');
-    btn.textContent = 'Cliquez-moi';
-    btn.style.padding = '10px 20px';
-    btn.style.margin = '20px';
-    btn.style.borderRadius = '5px';
-    btn.style.border = 'none';
-    btn.style.background = '#27ae60';
-    btn.style.color = 'white';
-    btn.style.cursor = 'pointer';
-    
-    btn.addEventListener('click', function() {
-        alert('Bonjour depuis l\'éditeur !');
+// Exemple d'interaction
+(function(){
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page chargée');
     });
-    
-    document.body.appendChild(btn);
-});`;
+})();`;
 
 // ----------  ÉLÉMENTS DOM  ----------
 let htmlEditor, cssEditor, jsEditor;
@@ -81,6 +47,32 @@ function $$(selector) {
     return Array.from(document.querySelectorAll(selector));
 }
 
+// Escape HTML pour afficher des messages d'erreur de manière sûre
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Gestion des erreurs venant de l'iframe d'aperçu
+let lastPreviewError = null;
+let cspNotificationShown = false;
+window.addEventListener('message', (ev) => {
+    try {
+        const data = ev.data;
+        if (data && data.type === 'preview-error') {
+            lastPreviewError = data;
+            console.log('Received preview error:', data);
+            showNotification('Erreur détectée dans l\'aperçu : ' + (data.message || 'Erreur'), 'error');
+        }
+    } catch (e) {
+        console.warn('Error handling preview message:', e);
+    }
+});
+
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
@@ -92,6 +84,40 @@ function showNotification(message, type = 'success') {
         notification.style.transform = 'translateY(-20px)';
         setTimeout(() => notification.remove(), 300);
     }, 2000);
+}
+
+// Vide l'éditeur au premier focus si son contenu correspond au contenu initial
+function addClearOnFirstFocus(editor, initValue, name = '') {
+    if (!editor) return;
+    const handler = function() {
+        try {
+            const current = editor.getValue();
+            if (current === initValue) {
+                editor.setValue('');
+                // Retirer le listener AVANT de manipuler le focus pour éviter tout effet secondaire
+                editor.off('focus', handler);
+                // positionner le curseur au début et s'assurer du focus
+                setTimeout(() => {
+                    try {
+                        editor.focus();
+                        if (typeof editor.setCursor === 'function') {
+                            editor.setCursor(0, 0);
+                        }
+                        if (typeof editor.scrollIntoView === 'function') {
+                            editor.scrollIntoView({ line: 0, ch: 0 }, 100);
+                        }
+                    } catch (e) {
+                        console.warn('Could not set cursor/focus after clear:', e);
+                    }
+                }, 0);
+                console.log(`${name} editor: cleared on first focus`);
+                showNotification(`${name} vidé — vous pouvez commencer à coder`, 'success');
+            }
+        } catch (e) {
+            console.warn('addClearOnFirstFocus error:', e);
+        }
+    };
+    editor.on('focus', handler);
 }
 
 function downloadFile(content, filename, type = 'text/plain') {
@@ -107,8 +133,49 @@ function downloadFile(content, filename, type = 'text/plain') {
 }
 
 // ----------  INITIALISATION DES ÉDITEURS  ----------
-    showActiveEditor('html');
+function initCodeMirror() {
     console.log('Initialisation de CodeMirror...');
+    const baseOptions = {
+        lineNumbers: true,
+        theme: currentTheme,
+        lineWrapping: true,
+        indentUnit: 2,
+        tabSize: 2,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        styleActiveLine: true,
+        viewportMargin: Infinity,
+        readOnly: false
+    };
+
+    try {
+        htmlEditor = CodeMirror.fromTextArea($('#htmlEditor'), { ...baseOptions, mode: 'htmlmixed' });
+        htmlEditor.setValue('');
+        console.log('Éditeur HTML initialisé');
+    } catch (error) {
+        console.error('Erreur initialisation HTML:', error);
+    }
+
+    try {
+        cssEditor = CodeMirror.fromTextArea($('#cssEditor'), { ...baseOptions, mode: 'css' });
+        cssEditor.setValue('');
+        console.log('Éditeur CSS initialisé');
+    } catch (error) {
+        console.error('Erreur initialisation CSS:', error);
+    }
+
+    try {
+        jsEditor = CodeMirror.fromTextArea($('#jsEditor'), { ...baseOptions, mode: 'javascript' });
+        jsEditor.setValue('');
+        console.log('Éditeur JS initialisé');
+    } catch (error) {
+        console.error('Erreur initialisation JS:', error);
+    }
+
+    // Activer l'éditeur HTML par défaut
+    showActiveEditor('html');
+    console.log('initCodeMirror: tous les éditeurs initialisés');
+}
     
 function showActiveEditor(type) {
     // Gérer les onglets
@@ -144,65 +211,8 @@ function showActiveEditor(type) {
         }
     });
 }
-        console.log('Éditeur JS initialisé');
-        console.log('JS Editor readOnly:', jsEditor.getOption('readOnly'));
-        console.log('JS Editor textarea:', jsEditor.getTextArea());
-    } catch (error) {
-        console.error('Erreur initialisation JS:', error);
-    }
 
-    // Afficher l'éditeur HTML par défaut
-    showActiveEditor('html');
-}
 
-function showActiveEditor(type) {
-    // Masquer tous les éditeurs
-    const editors = [
-        { editor: htmlEditor, id: 'html' },
-        { editor: cssEditor, id: 'css' },
-        { editor: jsEditor, id: 'js' }
-    ];
-
-    editors.forEach(({ editor, id }) => {
-        if (editor && editor.getWrapperElement) {
-            const wrapper = editor.getWrapperElement();
-            if (id === type) {
-                wrapper.classList.add('active');
-                wrapper.style.display = 'block';
-                setTimeout(() => {
-                    editor.refresh();
-                    editor.focus();
-                }, 50);
-            } else {
-                wrapper.classList.remove('active');
-                wrapper.style.display = 'none';
-            }
-        } else if (!editor && id === type) {
-            if (id === 'html') {
-                htmlEditor = CodeMirror.fromTextArea($('#htmlEditor'), { lineNumbers: true, theme: currentTheme, mode: 'htmlmixed' });
-                htmlEditor.setValue(INIT_HTML);
-                setTimeout(() => {
-                    htmlEditor.refresh();
-                    htmlEditor.focus();
-                }, 50);
-            } else if (id === 'css') {
-                cssEditor = CodeMirror.fromTextArea($('#cssEditor'), { lineNumbers: true, theme: currentTheme, mode: 'css' });
-                cssEditor.setValue(INIT_CSS);
-                setTimeout(() => {
-                    cssEditor.refresh();
-                    cssEditor.focus();
-                }, 50);
-            } else if (id === 'js') {
-                jsEditor = CodeMirror.fromTextArea($('#jsEditor'), { lineNumbers: true, theme: currentTheme, mode: 'javascript' });
-                jsEditor.setValue(INIT_JS);
-                setTimeout(() => {
-                    jsEditor.refresh();
-                    jsEditor.focus();
-                }, 50);
-            }
-        }
-    });
-}
 
 // ----------  MISE À JOUR DE LA PRÉVISUALISATION  ----------
 function updatePreview() {
@@ -211,64 +221,47 @@ function updatePreview() {
         const css = cssEditor ? cssEditor.getValue() : '';
         const js = jsEditor ? jsEditor.getValue() : '';
 
-        // Validation JS simple : on tente un new Function
-        let jsIsValid = true;
-        if (js.trim()) {
+        // Nouvelle version : on injecte directement le JS dans l'iframe, sans validation préalable
+        const fullDocument = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>${css}</style>
+</head>
+<body>
+    ${html}
+    <script>
+        try {
+            ${js}
+        } catch(e) {
+            console.error('Erreur JS:', e);
+            document.body.innerHTML += '<div style="color: #e74c3c; padding: 10px; border: 1px solid #e74c3c; margin: 10px;">Erreur JS: ' + (e && e.message ? e.message : e) + '</div>';
             try {
-                // eslint-disable-next-line no-new-func
-                new Function(js);
-            } catch (e) {
-                jsIsValid = false;
+                window.parent.postMessage({ type: 'preview-error', message: (e && e.message) ? e.message : String(e), line: e && (e.lineNumber || e.line), column: e && (e.columnNumber || e.column), stack: e && e.stack }, '*');
+            } catch (postE) {
+                console.warn('Unable to postMessage to parent from iframe catch:', postE);
             }
         }
-
-        let fullDocument;
-        if (jsIsValid) {
-            fullDocument = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>${css}</style>
-</head>
-<body>
-    ${html}
-    <script>${js}<\/script>
+    <\/script>
 </body>
 </html>`;
-        } else {
-            fullDocument = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>${css}</style>
-</head>
-<body>
-    ${html}
-    <div style='color: #e74c3c; font-weight: bold; padding: 1em;'>Erreur de syntaxe dans le code JavaScript : l'aperçu JS est désactivé.</div>
-</body>
-</html>`;
-        }
 
         // Mettre à jour l'iframe
         const iframe = $('#viewer');
         if (iframe) {
             iframe.srcdoc = fullDocument;
+            console.log('updatePreview: iframe.srcdoc mis à jour');
         }
 
         // Mettre à jour le statut
         const status = $('#status');
         if (status) {
-            status.textContent = jsIsValid ? 'Prévisualisation mise à jour' : 'Erreur JS dans l\'aperçu';
+            status.textContent = 'Prévisualisation mise à jour';
             setTimeout(() => {
                 status.textContent = 'Prêt';
             }, 2000);
-        }
-        if (!jsIsValid) {
-            showNotification('Erreur de syntaxe dans le JS', 'error');
         }
     } catch (error) {
         console.error('Erreur de prévisualisation:', error);
@@ -290,7 +283,9 @@ function setupTabs() {
             
             // Afficher l'éditeur correspondant
             const editorType = this.getAttribute('data-editor');
+            console.log('setupTabs: onglet cliqué =>', editorType);
             showActiveEditor(editorType);
+            updatePreview();
         });
     });
 }
@@ -434,6 +429,47 @@ function setupButtons() {
     $('#confirmExportZipBtn').addEventListener('click', function() {
         exportProjectAsZip();
     });
+
+    // Bouton Debug (affiche des infos utiles pour le diagnostic)
+    const debugBtn = $('#debugBtn');
+    if (debugBtn) {
+        debugBtn.addEventListener('click', function() {
+            console.log('=== DEBUG INFO ===');
+            console.log('HTML Editor:', htmlEditor ? 'OK' : 'NULL');
+            console.log('CSS Editor:', cssEditor ? 'OK' : 'NULL');
+            console.log('JS Editor:', jsEditor ? 'OK' : 'NULL');
+            console.log('Current Theme:', currentTheme);
+            console.log('Active Tab:', $('.tab.active') ? $('.tab.active').getAttribute('data-editor') : 'none');
+            console.log('LocalStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('editor_')));
+            showNotification('Infos debug affichées dans la console', 'success');
+        });
+    }
+
+    // Bouton Aller à l'erreur (si une erreur a été transmise depuis l'iframe)
+    const gotoBtn = $('#gotoErrorBtn');
+    if (gotoBtn) {
+        gotoBtn.addEventListener('click', function() {
+            if (!lastPreviewError) {
+                showNotification('Aucune erreur d\'aperçu disponible', 'warning');
+                return;
+            }
+            // Activer l'onglet JS
+            const jsTab = $$('.tab').find(t => t.getAttribute('data-editor') === 'js');
+            if (jsTab) jsTab.click();
+            // Donner le focus et positionner le curseur si possible
+            if (jsEditor) {
+                jsEditor.focus();
+                const line = lastPreviewError.line ? Math.max(0, lastPreviewError.line - 1) : 0;
+                const ch = lastPreviewError.column ? Math.max(0, lastPreviewError.column - 1) : 0;
+                try {
+                    jsEditor.setCursor(line, ch);
+                    jsEditor.scrollIntoView({ line: line, ch: ch }, 100);
+                } catch (e) {
+                    console.warn('Impossible de naviguer à la position d\'erreur:', e);
+                }
+            }
+        });
+    }
 }
 
 // ----------  PRÉVISUALISATION ZIP  ----------
@@ -444,13 +480,13 @@ function updateZipPreview() {
     
     let preview = `${folderName}/\n`;
     preview += `├── index.html\n`;
-    preview += `├── style.css\n`;
+    preview += `├── styles.css\n`;
     preview += `└── script.js\n`;
     
     if (includeReadme) {
         preview = `${folderName}/\n`;
         preview += `├── index.html\n`;
-        preview += `├── style.css\n`;
+        preview += `├── styles.css\n`;
         preview += `├── script.js\n`;
         preview += `└── README.md`;
     }
@@ -475,12 +511,12 @@ async function exportProjectAsZip() {
         
         // Ajouter les fichiers
         folder.file('index.html', htmlEditor.getValue());
-        folder.file('style.css', cssEditor.getValue());
+        folder.file('styles.css', cssEditor.getValue());
         folder.file('script.js', jsEditor.getValue());
         
         // Ajouter README si demandé
         if (includeReadme) {
-            const readmeContent = `# Projet ${folderName}\n\nGénéré avec l'éditeur HTML Temps Réel\n\n## Fichiers\n- index.html\n- style.css\n- script.js`;
+            const readmeContent = `# Projet ${folderName}\n\nGénéré avec l'éditeur HTML Temps Réel\n\n## Fichiers\n- index.html\n- styles.css\n- script.js`;
             folder.file('README.md', readmeContent);
         }
         
