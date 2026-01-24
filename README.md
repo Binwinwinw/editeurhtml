@@ -13,6 +13,8 @@ Un éditeur web moderne permettant d’écrire, prévisualiser et sauvegarder du
 ## Fonctionnalités principales
 
 - **Édition multi-langage** (HTML, CSS, JS) avec CodeMirror
+- **Interface split view** : les 3 éditeurs sont affichés côte à côte (ou empilés sur mobile/tablette) sur la moitié gauche, la prévisualisation occupe la moitié droite
+- **Responsive design** : l’interface s’adapte automatiquement à la taille de l’écran (pile verticale sur petits écrans)
 - **Détection intelligente** lors du collage : sépare automatiquement HTML, CSS, JS (ignore les `<script src=...>`)
 - **Prévisualisation instantanée** dans une iframe sécurisée
 - **Thème sombre/clair**
@@ -36,10 +38,13 @@ Un éditeur web moderne permettant d’écrire, prévisualiser et sauvegarder du
 - **CSS factorisé et performant**
 - **Variables CSS** pour le thème et la personnalisation
 - **Code commenté et repéré pour faciliter la maintenance**
+- **Aucun code d’exemple initial** : les éditeurs sont vides à l’ouverture, prêt à coder directement
 
 ## Conseils d’utilisation
 
 - Utilisez la barre d’outils pour changer de thème, copier/coller, effacer ou sauvegarder
+- Les 3 éditeurs sont toujours visibles (plus d’onglets)
+- L’interface s’adapte à la taille de l’écran : split view sur grand écran, pile verticale sur mobile/tablette
 - Le collage multi-langage répartit automatiquement le code dans les bons éditeurs
 - La barre d’outils et les notifications restent toujours visibles
 - Le scroll ne masque jamais la prévisualisation
