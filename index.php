@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 // ========== HEADERS DE SÉCURITÉ ==========
 // Content Security Policy : deuxième ligne de défense contre XSS/injection
-header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';");
+header("Content-Security-Policy: default-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';");
 
 // Protections standards HTTP
 header('X-Frame-Options: DENY');

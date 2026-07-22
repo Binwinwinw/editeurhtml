@@ -177,9 +177,6 @@ button {
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/edit/matchbrackets.min.js" integrity="sha384-8hJWmYgam1/rlps5AkxiosWVvegPxaXMY4GrUsLFaOGntQbSk4dN1wrqmORW65nM" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/addon/selection/active-line.min.js" integrity="sha384-qZGar2ZicPDbTAQNd1uGm8l6XJeP4Rh2qHv7OUdnsYoKw46P3yv3LTYVa475mcNF" crossorigin="anonymous"></script>
 
-  <!-- JSZip -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
-
   <script src="main.js"></script>
 </body>
 </html>

@@ -748,43 +748,171 @@ function updateZipPreview() {
   node.classList.toggle("is-visible", showPreview);
 }
 
+function sanitizeZipFolderName(name) {
+  const cleaned = String(name || "mon_projet")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\.+/g, ".")
+    .replace(/^\.+/, "")
+    .replace(/[^\w\-.\u00C0-\u024F ]+/g, "-")
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
+  return cleaned || "mon_projet";
+}
+
+/** Table CRC32 (ZIP). */
+const ZIP_CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function zipCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc = ZIP_CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function concatUint8Arrays(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+/**
+ * ZIP natif (méthode STORE) — sans JSZip / CDN.
+ * @param {{ path: string, content: string }[]} entries
+ */
+function createStoreZipBlob(entries) {
+  const encoder = new TextEncoder();
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBytes = encoder.encode(entry.path.replace(/\\/g, "/"));
+    const dataBytes = encoder.encode(entry.content ?? "");
+    const crc = zipCrc32(dataBytes);
+
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(localHeader.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0x0800, true); // UTF-8
+    lv.setUint16(8, 0, true); // STORE
+    lv.setUint16(10, 0, true);
+    lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, dataBytes.length, true);
+    lv.setUint32(22, dataBytes.length, true);
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);
+    localHeader.set(nameBytes, 30);
+
+    const localFile = concatUint8Arrays([localHeader, dataBytes]);
+    locals.push(localFile);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(centralHeader.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true);
+    cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, dataBytes.length, true);
+    cv.setUint32(24, dataBytes.length, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    centrals.push(centralHeader);
+
+    offset += localFile.length;
+  }
+
+  const centralDir = concatUint8Arrays(centrals);
+  const endRecord = new Uint8Array(22);
+  const ev = new DataView(endRecord.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, entries.length, true);
+  ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralDir.length, true);
+  ev.setUint32(16, offset, true);
+  ev.setUint16(20, 0, true);
+
+  const zipBytes = concatUint8Arrays([...locals, centralDir, endRecord]);
+  return new Blob([zipBytes], { type: "application/zip" });
+}
+
 async function exportProjectAsZip() {
   try {
-    const folderName =
-      ($("#zipFolderName").value || "mon_projet").trim() || "mon_projet";
-    const includeReadme = $("#zipIncludeReadme").checked;
-
-    const zip = new JSZip();
-    const folder = zip.folder(folderName);
-
-    folder.file(
-      "index.html",
-      buildExportIndexHtml(state.htmlEditor.getValue()),
+    const folderName = sanitizeZipFolderName(
+      $("#zipFolderName")?.value || "mon_projet",
     );
-    folder.file("styles.css", state.cssEditor.getValue());
-    folder.file("script.js", state.jsEditor.getValue());
+    const includeReadme = Boolean($("#zipIncludeReadme")?.checked);
+
+    const entries = [
+      {
+        path: `${folderName}/index.html`,
+        content: buildExportIndexHtml(state.htmlEditor.getValue()),
+      },
+      {
+        path: `${folderName}/styles.css`,
+        content: state.cssEditor.getValue(),
+      },
+      {
+        path: `${folderName}/script.js`,
+        content: state.jsEditor.getValue(),
+      },
+    ];
 
     if (includeReadme) {
-      folder.file(
-        "README.md",
-        `# ${folderName}
+      entries.push({
+        path: `${folderName}/README.md`,
+        content: `# ${folderName}
 
 Projet exporté depuis l’éditeur HTML temps réel.
 
 ## Fichiers
 - index.html
 - styles.css
-- script.js`,
-      );
+- script.js
+`,
+      });
     }
 
-    const blob = await zip.generateAsync({ type: "blob" });
+    const blob = createStoreZipBlob(entries);
     downloadBlob(blob, `${folderName}.zip`);
     closeModal("#exportZipModal");
     showNotification("Projet ZIP exporté");
   } catch (error) {
-    console.error(error);
-    showNotification("Erreur pendant l’export ZIP", "error");
+    console.error("exportProjectAsZip:", error);
+    showNotification(
+      `Erreur export ZIP: ${error?.message || "inconnue"}`,
+      "error",
+    );
   }
 }
 

@@ -8,6 +8,12 @@ Project-specific weirdness — the non-obvious stuff.
 - Quirk: `.htaccess` local limite les `*.php` à `127.0.0.1` / `::1`. En prod, utiliser `.htaccessprod` (renommer en `.htaccess` sur Hostinger) : PHP public, dossiers `.agents`/`.memory`/`.gitnexus`/`docs`/`dev` bloqués.
 - Impact: `.htaccess`, `.htaccessprod`, pages PHP.
 
+## 2026-07-22 — Export ZIP prod
+
+- Contexte: erreur export ZIP en prod (téléchargement fichier OK, ZIP KO).
+- Quirk: dépendance JSZip (CDN/vendor) fragile en prod. Export ZIP réécrit en ZIP STORE natif dans `main.js` (`createStoreZipBlob`), sans lib externe.
+- Impact: `main.js`, `editeur.php`.
+
 ## 2026-07-21 — SRI CodeMirror
 
 - Contexte: popup « CodeMirror indisponible ».
