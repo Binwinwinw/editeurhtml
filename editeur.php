@@ -1,5 +1,11 @@
 <?php
-// index.php - Serveur de l’éditeur HTML/CSS/JS en temps réel   
+declare(strict_types=1);
+
+// Accès direct interdit : headers de sécurité uniquement via index.php
+if (!defined('EDITEURHTML_ROUTER')) {
+    header('Location: index.php?page=editeur', true, 302);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">

@@ -91,4 +91,6 @@ $routes = [
     'editeur' => __DIR__ . '/editeur.php',
 ];
 
+// Marqueur : les vues ne doivent pas être ouvertes hors routeur (headers CSP)
+define('EDITEURHTML_ROUTER', true);
 require $routes[$page];

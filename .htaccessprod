@@ -14,6 +14,10 @@ DirectoryIndex index.php index.html
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Forcer le passage par le routeur (headers CSP)
+  RewriteRule ^editeur\.php$ index.php?page=editeur [L,R=302]
+  RewriteRule ^landingpage\.php$ index.php?page=landing [L,R=302]
+
   # Bloquer dossiers internes / outillage
   RewriteRule (^|/)\.(agents|memory|gitnexus|git)(/|$) - [F,L]
   RewriteRule ^(docs|dev)(/|$) - [F,L]

@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
 
+// Accès direct interdit : headers de sécurité uniquement via index.php
+if (!defined('EDITEURHTML_ROUTER')) {
+    header('Location: index.php?page=landing', true, 302);
+    exit;
+}
+
 $appUrl = 'index.php?page=editeur';
 ?>
 <!DOCTYPE html>
