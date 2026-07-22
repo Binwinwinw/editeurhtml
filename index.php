@@ -11,8 +11,22 @@ declare(strict_types=1);
  */
 
 // ========== HEADERS DE SÉCURITÉ ==========
-// Content Security Policy : deuxième ligne de défense contre XSS/injection
-header("Content-Security-Policy: default-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';");
+// CSP unique (source de vérité). Ne pas redéfinir dans .htaccess :
+// plusieurs en-têtes CSP = intersection stricte côté navigateur.
+header(
+    "Content-Security-Policy: "
+    . "default-src 'self' blob:; "
+    . "script-src 'self' https://cdn.jsdelivr.net; "
+    . "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://api.fontshare.com; "
+    . "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdn.fontshare.com; "
+    . "img-src 'self' data: blob:; "
+    . "frame-src 'self' blob:; "
+    . "connect-src 'self'; "
+    . "object-src 'none'; "
+    . "base-uri 'self'; "
+    . "form-action 'self'; "
+    . "frame-ancestors 'none'"
+);
 
 // Protections standards HTTP
 header('X-Frame-Options: DENY');

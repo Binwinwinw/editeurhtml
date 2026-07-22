@@ -39,16 +39,15 @@ DirectoryIndex index.php index.html
 </LimitExcept>
 
 # -------------------------
-# Headers de sécurité
-# Alignés avec index.php (CSP preview iframe + CDN CodeMirror/JSZip)
+# Headers de sécurité (hors CSP)
+# CSP uniquement via index.php — ne pas set/unset ici :
+# "Header always unset CSP" effacerait aussi la CSP PHP (CGI/FPM).
 # -------------------------
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
-
-  Header always set Content-Security-Policy "default-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
   # HSTS — domaine Hostinger en HTTPS
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"

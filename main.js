@@ -51,6 +51,7 @@ const STORAGE_KEYS = {
   css: "rt_editor_css",
   js: "rt_editor_js",
   theme: "rt_editor_theme",
+  uiTheme: "rt_ui_theme",
 };
 
 const state = {
@@ -567,14 +568,37 @@ function setTheme(theme) {
   });
 
   const toggle = $("#themeToggle");
-  if (toggle) toggle.textContent = theme === "dracula" ? "🌙" : "☀️";
+  if (toggle) {
+    const isDark = theme === "dracula";
+    toggle.textContent = isDark ? "🌙" : "☀️";
+    toggle.setAttribute(
+      "aria-label",
+      isDark ? "Passer au thème clair" : "Passer au thème sombre",
+    );
+    toggle.setAttribute("title", toggle.getAttribute("aria-label"));
+    toggle.setAttribute("aria-pressed", isDark ? "true" : "false");
+  }
 
   safeStorageSet(STORAGE_KEYS.theme, theme);
+  // Aligné avec la landing (light/dark)
+  safeStorageSet(STORAGE_KEYS.uiTheme, theme === "mdn-like" ? "light" : "dark");
+}
+
+function resolveInitialTheme() {
+  const savedEditorTheme = safeStorageGet(STORAGE_KEYS.theme);
+  if (savedEditorTheme === "dracula" || savedEditorTheme === "mdn-like") {
+    return savedEditorTheme;
+  }
+
+  const savedUiTheme = safeStorageGet(STORAGE_KEYS.uiTheme);
+  if (savedUiTheme === "light") return "mdn-like";
+  if (savedUiTheme === "dark") return "dracula";
+
+  return "dracula";
 }
 
 function setupTheme() {
-  const savedTheme = safeStorageGet(STORAGE_KEYS.theme);
-  state.currentTheme = savedTheme || "dracula";
+  state.currentTheme = resolveInitialTheme();
   setTheme(state.currentTheme);
 
   $("#themeToggle").addEventListener("click", () => {

@@ -988,7 +988,7 @@ $appUrl = 'index.php?page=editeur';
       </a>
 
       <nav class="nav-actions" aria-label="Navigation principale">
-        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Basculer le thème">◐</button>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Passer au thème sombre" aria-pressed="false" title="Passer au thème sombre">◐</button>
         <a class="ghost-link" href="#fonctionnalites">Fonctionnement</a>
         <a class="primary-link" href="<?= htmlspecialchars($appUrl, ENT_QUOTES, 'UTF-8') ?>">Ouvrir l’éditeur</a>
       </nav>
@@ -1244,22 +1244,6 @@ $appUrl = 'index.php?page=editeur';
     </div>
   </footer>
 
-  <script>
-    (function () {
-      const root = document.documentElement;
-      const toggle = document.querySelector('[data-theme-toggle]');
-      let theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-
-      root.setAttribute('data-theme', theme);
-
-      if (toggle) {
-        toggle.addEventListener('click', function () {
-          theme = theme === 'dark' ? 'light' : 'dark';
-          root.setAttribute('data-theme', theme);
-          toggle.setAttribute('aria-label', theme === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre');
-        });
-      }
-    })();
-  </script>
+  <script src="landing.js"></script>
 </body>
 </html>

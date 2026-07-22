@@ -37,15 +37,15 @@ Options -Indexes
 </LimitExcept>
 
 # -------------------------
-# Headers de sécurité
+# Headers de sécurité (hors CSP)
+# CSP uniquement via index.php — ne pas set/unset ici :
+# "Header always unset CSP" effacerait aussi la CSP PHP (CGI/FPM).
 # -------------------------
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
-  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
-
-  Header always set Content-Security-Policy "default-src 'self' blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; connect-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 </IfModule>
 
 # -------------------------

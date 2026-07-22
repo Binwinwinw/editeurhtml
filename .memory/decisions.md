@@ -2,6 +2,12 @@
 
 Architectural commitments made in this project.
 
+## 2026-07-22 — CSP unique
+
+- Contexte: CSP divergentes dans index.php / .htaccess / .htaccessprod.
+- Décision: une seule CSP dans `index.php`. Apache ne set/unset pas CSP (`always unset` effaçait la CSP PHP). Polices landing: fonts.googleapis + fontshare. Script thème → `landing.js`.
+- Impact: `index.php`, `.htaccess`, `.htaccessprod`, `landingpage.php`, `landing.js`.
+
 ## 2026-07-21 — Architecture applicative
 
 - Contexte: init dépôt après passage HTML → PHP.
