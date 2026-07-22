@@ -6,9 +6,10 @@ Un éditeur web moderne permettant d’écrire, prévisualiser et sauvegarder du
 
 ## Installation
 
-- Déposez le dossier `editeurhtml` sur votre serveur ou dans votre environnement local.
-- Ouvrez `index.html` dans votre navigateur.
-- (Optionnel) Utilisez Live Server pour le développement.
+- Déposez le dossier `editeurhtml` sur votre serveur ou dans votre environnement local (PHP requis).
+- Ouvrez `index.php` (landing) ou `index.php?page=editeur` (éditeur).
+- En local: `php -S localhost:8001` depuis le dossier parent, puis `http://localhost:8001/editeurhtml/`.
+- En production Hostinger: activer `.htaccessprod` en le renommant `.htaccess` (après sauvegarde de l’ancien).
 
 ## Fonctionnalités principales
 

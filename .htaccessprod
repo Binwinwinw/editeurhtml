@@ -1,0 +1,76 @@
+# =========================
+# .htaccessprod — production Hostinger
+# =========================
+# Activation:
+#   1. Sur l'hébergeur, sauvegarder le .htaccess actuel (ex. .htaccess.local.bak)
+#   2. Renommer ce fichier en .htaccess
+#   3. Tester: /editeurhtml/ et /editeurhtml/?page=editeur
+# Différence clé vs .htaccess local: PHP accessible publiquement (pas de filtre localhost).
+
+Options -Indexes
+
+DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Bloquer dossiers internes / outillage
+  RewriteRule (^|/)\.(agents|memory|gitnexus|git)(/|$) - [F,L]
+  RewriteRule ^(docs|dev)(/|$) - [F,L]
+</IfModule>
+
+# -------------------------
+# Sécurité fichiers sensibles
+# -------------------------
+<FilesMatch "^(\.env|\.env\..*|\.git|\.gitignore|\.htaccess|\.htaccessprod|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|AGENTS\.md|CLAUDE\.md)$">
+  Require all denied
+</FilesMatch>
+
+# Bloquer exécutables / scripts hors PHP applicatif
+<FilesMatch "\.(exe|sh|bat|msi|dll|com|scr|jar|py|pl|cgi)$">
+  Require all denied
+</FilesMatch>
+
+# -------------------------
+# Méthodes HTTP autorisées
+# -------------------------
+<LimitExcept GET POST HEAD>
+  Require all denied
+</LimitExcept>
+
+# -------------------------
+# Headers de sécurité
+# Alignés avec index.php (CSP preview iframe + CDN CodeMirror/JSZip)
+# -------------------------
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  # HSTS — domaine Hostinger en HTTPS
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# -------------------------
+# Compression
+# -------------------------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# -------------------------
+# Cache statique
+# -------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 1 hour"
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+</IfModule>

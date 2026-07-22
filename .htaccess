@@ -1,67 +1,81 @@
+# =========================
+# .htaccess — LOCAL seulement
+# =========================
+# En production Hostinger: utiliser .htaccessprod (renommer en .htaccess).
+# Ce fichier bloque les PHP hors localhost.
 
-
-# --- Sécurité hybride local/prod ---
-# Désactive l’exécution de scripts serveur (sauf si besoin localement)
-<IfModule mod_mime.c>
-  RemoveHandler .php .phtml .pl .py .cgi .asp .aspx .jsp
-  RemoveType .php .phtml .pl .py .cgi .asp .aspx .jsp
-</IfModule>
-
-# Bloque l’accès direct aux scripts serveur (Apache 2.4+)
-<FilesMatch "\.(php|phtml|pl|py|cgi|asp|aspx|jsp)$">
-  <If "%{REMOTE_ADDR} != '127.0.0.1' && %{REMOTE_ADDR} != '::1'">
-    Require all denied
-  </If>
-</FilesMatch>
-
-
-# Désactive l’indexation des répertoires
 Options -Indexes
 
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+</IfModule>
 
-# Protection XSS, clickjacking, content sniffing (mod_headers requis)
+# -------------------------
+# Sécurité fichiers sensibles
+# -------------------------
+<FilesMatch "^(\.env|\.git|\.gitignore|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|\.htaccess)$">
+  Require all denied
+</FilesMatch>
+
+# Bloquer les fichiers exécutables dangereux
+<FilesMatch "\.(exe|sh|bat|msi|dll|com|scr|jar)$">
+  Require all denied
+</FilesMatch>
+
+# -------------------------
+# Restreindre certains scripts serveur en local seulement
+# -------------------------
+<FilesMatch "\.(php|phtml|pl|py|cgi|asp|aspx|jsp)$">
+  Require ip 127.0.0.1 ::1
+</FilesMatch>
+
+# -------------------------
+# Méthodes HTTP autorisées
+# -------------------------
+<LimitExcept GET POST HEAD>
+  Require all denied
+</LimitExcept>
+
+# -------------------------
+# Headers de sécurité
+# -------------------------
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
-  Header always set X-XSS-Protection "1; mode=block"
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; connect-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; object-src 'none'; frame-ancestors 'none'; base-uri 'self';"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; connect-src 'self' https://cdn.jsdelivr.net https://r2cdn.perplexity.ai; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
 </IfModule>
 
-
-# Compression GZIP (mod_deflate requis)
+# -------------------------
+# Compression
+# -------------------------
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
 </IfModule>
 
-
-# Cache statique pour les assets (mod_expires requis)
+# -------------------------
+# Cache statique
+# -------------------------
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType text/html "access plus 1 hour"
   ExpiresByType text/css "access plus 1 week"
   ExpiresByType application/javascript "access plus 1 week"
   ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
 </IfModule>
 
-
-# Désactive l’upload et l’exécution de fichiers dangereux (Apache 2.4+)
-<FilesMatch "\.(exe|sh|bat|msi|dll|com|scr|jar)$">
-  Require all denied
-</FilesMatch>
-
-
-# Désactive les méthodes HTTP dangereuses (Apache 2.4+)
-<LimitExcept GET POST HEAD>
-  Require all denied
-</LimitExcept>
-
-
-# Désactive le hotlinking des assets (sauf localhost)
+# -------------------------
+# Anti-hotlinking léger
+# -------------------------
 <IfModule mod_rewrite.c>
-  RewriteEngine On
-  # Autorise localhost et accès direct
-  RewriteCond %{HTTP_REFERER} !^$
-  RewriteCond %{HTTP_REFERER} !^https?://(localhost|127\.0\.0\.1) [NC]
-  RewriteCond %{HTTP_REFERER} !^https?://votre-domaine\.tld [NC]
-  RewriteRule \.(jpg|jpeg|png|gif|svg|webp|css|js)$ - [F,NC]
+  RewriteCond %{REQUEST_FILENAME} \.(jpg|jpeg|png|gif|svg|webp)$ [NC]
+  RewriteCond %{HTTP_REFERER} !^$ [NC]
+  RewriteCond %{HTTP_REFERER} !^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?/ [NC]
+  RewriteCond %{HTTP_REFERER} !^https?://votre-domaine\.tld(/.*)?$ [NC]
+  RewriteRule . - [F,L]
 </IfModule>

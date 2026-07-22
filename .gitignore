@@ -1,28 +1,40 @@
-# Fichiers de config locaux à ne pas versionner
+# Variables d'environnement
 .env
 .env.*
-# Fichiers temporaires ou de cache
-*.log
-*.tmp
-.DS_Store
-node_modules/
-# Sauvegardes et fichiers sensibles
-.backups
-.htaccess
-.vscode/
-.ftpconfig
 .env.local
 .env.production
 .env.development
 .env.test
-# Fichiers système
-.idea/
-.history/
-.sass-cache/
+
+# Dépendances
+node_modules/
+
+# Logs / caches / temporaires
+*.log
+*.tmp
 .cache/
 .tmp/
-# Archives exportées
+.sass-cache/
+.history/
+
+# Système / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Outils / déploiement local
+.ftpconfig
+
+# Sauvegardes / exports
+.backups/
 *.zip
-# Dossiers de build éventuels
-/dist/
-/build/
+
+# Builds éventuels
+dist/
+build/
+
+# Index GitNexus / caches agents
+.gitnexus/
+.claude/
+.agents/skills/**/__pycache__/
+.agents/skills/**/*.pyc

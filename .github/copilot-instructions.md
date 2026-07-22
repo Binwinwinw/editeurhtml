@@ -1,41 +1,40 @@
-# Copilot Instructions for Éditeur HTML Temps Réel
 
-## Vue d'ensemble
-Ce projet est un éditeur web en temps réel pour HTML, CSS et JavaScript, avec prévisualisation instantanée et export des fichiers. L'architecture est simple : tout le code JS est centralisé dans `main.js`, l'interface dans `index.html`, et le style dans `styles.css`.
+<!-- hacklm-memory:start -->
+## Memory-Augmented Context
 
-## Structure et composants clés
-- `index.html` : structure de l'interface, barre d'outils, modals, volets éditeurs, iframe d'aperçu.
-- `main.js` : toute la logique (CodeMirror, gestion des onglets, notifications, export ZIP, collage multi-langage, accessibilité, sécurité, etc.).
-- `styles.css` : thèmes, variables CSS, responsive, accessibilité.
+Read memory files on-demand — not all at once.
 
-## Conventions et patterns spécifiques
-- **Édition multi-langage** : chaque volet (HTML, CSS, JS) est un éditeur CodeMirror distinct. Le collage multi-langage répartit automatiquement le code dans les bons éditeurs.
-- **Export ZIP** : le bouton "Enregistrer le projet" génère un ZIP contenant `index.html`, `styles.css`, `main.js` via JSZip (chargé dynamiquement).
-- **Notifications** : feedback utilisateur via la fonction `notify()`.
-- **Aperçu sécurisé** : l'iframe utilise `sandbox` pour isoler le rendu.
-- **Accessibilité** : navigation clavier, focus, contrastes, modals accessibles.
-- **Effacement** : boutons pour effacer le code d'un volet ou de tous les volets.
+| File | When to read |
+|------|-------------|
+| [.memory/instructions.md](.memory/instructions.md) | How to behave |
+| [.memory/quirks.md](.memory/quirks.md) | When something breaks unexpectedly |
+| [.memory/preferences.md](.memory/preferences.md) | Style/design/naming choices |
+| [.memory/decisions.md](.memory/decisions.md) | Architectural changes |
+| [.memory/security.md](.memory/security.md) | **ALWAYS — before any code change** |
 
-## Workflows développeur
-- **Développement** : modifier directement les fichiers, puis ouvrir `index.html` dans le navigateur. Utiliser Live Server pour le hot reload si besoin.
-- **Debug** : tout le JS est dans `main.js`, les erreurs apparaissent dans la console du navigateur.
-- **Test** : vérifier la prévisualisation et l'export ZIP dans le navigateur.
+### Memory Tools
 
-## Points d'intégration et dépendances
-- **CodeMirror** : chargé via CDN dans `index.html`.
-- **JSZip** : chargé dynamiquement lors de l'export ZIP.
-- **Aucune compilation ou build** : projet 100% client-side, pas de dépendances Node ou package.json.
+Call `queryMemory` before answering anything about architecture, conventions, or style.
 
-## Exemples de patterns
-- Pour ajouter une fonctionnalité, modifiez ou étendez `setupButtons()` dans `main.js`.
-- Pour changer le style, utilisez les variables CSS dans `styles.css`.
-- Pour intégrer une nouvelle dépendance JS, chargez-la via CDN dans `index.html` ou dynamiquement dans `main.js`.
+Call `storeMemory` (with a kebab-case `slug`) when:
+1. User states a preference or rule → store as Instruction or Preference **before** acting
+2. User corrects you → store the correction
+3. A command or build fails → store root cause and fix
+4. After completing any implementation task → store each architectural decision, convention, or pattern applied that is not already in memory. Do this **before ending the turn**.
 
-## Fichiers de référence
-- [index.html](../../index.html)
-- [main.js](../../main.js)
-- [styles.css](../../styles.css)
+Same slug = update, not duplicate.
 
----
+### Writing Style for Memory Entries
+Hemingway style. Short sentences. No jargon. No filler. Be blunt.
+Bad: "The system employs an asynchronous locking mechanism to serialise concurrent write operations."
+Good: "Use a lock before writing. One write at a time."
 
-Pour toute modification, gardez la logique centralisée dans `main.js` et respectez la séparation interface/style/fonctionnel. Pour des conventions ou workflows non documentés, consultez le README ou le code source.
+### Categories
+| Category | Use for |
+|----------|---------|
+| Instruction | How to behave |
+| Quirk | Project-specific weirdness |
+| Preference | Style/design/naming |
+| Decision | Architectural commitments |
+| Security | Rules that must NEVER be broken |
+<!-- hacklm-memory:end -->

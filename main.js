@@ -1,690 +1,953 @@
-/* =========================================================
- *  ÉDITEUR HTML / CSS / JS  –  main.js  (version corrigée)
- * ========================================================= */
+const DEFAULT_PROJECT = {
+  html: `<main class="demo">
+  <h1>Bonjour 👋</h1>
+  <p>Commencez à écrire votre HTML dans l’éditeur.</p>
+  <button id="demoBtn">Clique-moi</button>
+</main>`,
+  css: `:root {
+  color-scheme: light;
+}
 
-// ----------  CONSTANTES  ----------
-const INIT_HTML = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Editeur MultiLanguage</title>
-    <style>
-        body { font-family: system-ui; padding: 2rem; background: #f0f0f0; }
-        h1 { color: #3498db; }
-    </style>
-</head>
-<body>
-    <h1>Bonjour !</h1>
-    <p>Commencez à éditer votre code ici...</p>
-</body>
-</html>`;
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: linear-gradient(135deg, #f5f7fb 0%, #e8eefc 100%);
+  color: #172033;
+}
 
-const INIT_CSS = `/* Votre CSS ici */
-body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; }
+.demo {
+  max-width: 720px;
+  margin: 60px auto;
+  background: white;
+  padding: 32px;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.08);
+}
 
-h1 { text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }`;
+h1 {
+  color: #1d4ed8;
+}
 
-const INIT_JS = `// Votre JavaScript ici
-console.log('Éditeur HTML Temps Réel - Prêt !');
-
-// Exemple d'interaction
-(function(){
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Page chargée');
+button {
+  border: 0;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}`,
+  js: `document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('demoBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      alert('Le JavaScript fonctionne 🎉');
     });
-})();`;
+  }
+});`,
+};
 
-// ----------  ÉLÉMENTS DOM  ----------
-let htmlEditor, cssEditor, jsEditor;
-let currentTheme = 'dracula';
+const STORAGE_KEYS = {
+  html: "rt_editor_html",
+  css: "rt_editor_css",
+  js: "rt_editor_js",
+  theme: "rt_editor_theme",
+};
 
-// ----------  FONCTIONS UTILITAIRES  ----------
-function $(selector) {
-    return document.querySelector(selector);
+const state = {
+  htmlEditor: null,
+  cssEditor: null,
+  jsEditor: null,
+  currentTheme: "dracula",
+  activeEditor: "html",
+  saveTimer: null,
+  previewTimer: null,
+  lastPreviewError: null,
+  previewJsLineOffset: 0,
+  isResizing: false,
+};
+
+const $ = (selector, scope = document) => scope.querySelector(selector);
+const $$ = (selector, scope = document) =>
+  Array.from(scope.querySelectorAll(selector));
+
+function setStatus(message) {
+  const node = $("#status");
+  if (node) node.textContent = message;
 }
 
-function $$(selector) {
-    return Array.from(document.querySelectorAll(selector));
+function showNotification(message, type = "success") {
+  const node = document.createElement("div");
+  node.className = `notification ${type}`;
+  node.textContent = message;
+  document.body.appendChild(node);
+
+  setTimeout(() => {
+    node.style.opacity = "0";
+    node.style.transform = "translateY(-8px)";
+    setTimeout(() => node.remove(), 240);
+  }, 2200);
 }
 
-// Escape HTML pour afficher des messages d'erreur de manière sûre
-function escapeHtml(unsafe) {
-    return unsafe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+function safeStorageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-// Gestion des erreurs venant de l'iframe d'aperçu
-let lastPreviewError = null;
-let cspNotificationShown = false;
-window.addEventListener('message', (ev) => {
-    try {
-        const data = ev.data;
-        if (data && data.type === 'preview-error') {
-            lastPreviewError = data;
-            console.log('Received preview error:', data);
-            showNotification('Erreur détectée dans l\'aperçu : ' + (data.message || 'Erreur'), 'error');
-        }
-    } catch (e) {
-        console.warn('Error handling preview message:', e);
-    }
+function safeStorageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadTextFile(
+  content,
+  filename,
+  type = "text/plain;charset=utf-8",
+) {
+  downloadBlob(new Blob([content], { type }), filename);
+}
+
+function getEditorsMap() {
+  return {
+    html: state.htmlEditor,
+    css: state.cssEditor,
+    js: state.jsEditor,
+  };
+}
+
+function getActiveEditorInstance() {
+  return getEditorsMap()[state.activeEditor];
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function makeTextareaAdapter(selector) {
+  const textarea = $(selector);
+  if (!textarea) return null;
+  return {
+    getValue() {
+      return textarea.value;
+    },
+    setValue(value) {
+      textarea.value = value;
+    },
+    focus() {
+      textarea.focus();
+    },
+    replaceSelection(text) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      textarea.value =
+        textarea.value.slice(0, start) + text + textarea.value.slice(end);
+      textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    },
+    setCursor(pos) {
+      // Convertit {line, ch} de CodeMirror en position absolue pour textarea
+      const lines = textarea.value.split("\n");
+      let offset = 0;
+      for (let i = 0; i < pos.line && i < lines.length; i++) {
+        offset += lines[i].length + 1; // +1 pour '\n'
+      }
+      offset += Math.min(pos.ch, lines[pos.line]?.length || 0);
+      textarea.setSelectionRange(offset, offset);
+    },
+    scrollIntoView(pos, margin) {
+      // Pour textarea natif, focus + scroll vers le curseur
+      if (pos) this.setCursor(pos);
+      textarea.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    refresh() {},
+    setOption() {},
+    on(event, callback) {
+      // Implémente les event listeners pour le fallback textarea
+      if (event === "change") {
+        textarea.addEventListener("input", callback);
+      } else if (event === "focus") {
+        textarea.addEventListener("focus", callback);
+      }
+      // Retourne this pour permettre le chaînage
+      return this;
+    },
+  };
+}
+
+function enableTextareaFallback() {
+  $$(".editor-block").forEach((block) =>
+    block.classList.add("textarea-fallback"),
+  );
+  $$(".editor-block textarea").forEach((textarea) => {
+    textarea.style.display = "block";
+    textarea.style.width = "100%";
+    textarea.style.height = "100%";
+    textarea.style.padding = "16px";
+    textarea.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
+    textarea.style.fontSize = "0.95rem";
+    textarea.style.lineHeight = "1.6";
+    textarea.style.background = "transparent";
+    textarea.style.color = "inherit";
+    textarea.style.border = "0";
+    textarea.style.outline = "none";
+    textarea.style.resize = "none";
+  });
+  showNotification(
+    "CodeMirror indisponible — éditeurs natifs activés",
+    "warning",
+  );
+}
+
+function isFullHtmlDocument(text) {
+  return /^\s*<!doctype\s+html/i.test(text) || /^\s*<html[\s>]/i.test(text);
+}
+
+function getPreviewBodyHtml(html) {
+  if (!isFullHtmlDocument(html)) return { bodyHtml: html, headCss: "" };
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const headCss = [...doc.querySelectorAll("head style")]
+      .map((node) => node.textContent.trim())
+      .filter(Boolean)
+      .join("\n\n");
+    return {
+      bodyHtml: doc.body ? doc.body.innerHTML : html,
+      headCss,
+    };
+  } catch {
+    return { bodyHtml: html, headCss: "" };
+  }
+}
+
+function getPreviewErrorHandlerScript() {
+  return `window.addEventListener('error', function(event) {
+  try {
+    parent.postMessage({
+      type: 'preview-error',
+      message: event.message || 'Erreur JavaScript',
+      line: event.lineno || 0,
+      column: event.colno || 0,
+      stack: event.error && event.error.stack ? event.error.stack : null
+    }, '*');
+  } catch (e) {}
 });
 
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateY(-20px)';
-        setTimeout(() => notification.remove(), 300);
-    }, 2000);
+window.addEventListener('unhandledrejection', function(event) {
+  try {
+    const reason = event.reason;
+    parent.postMessage({
+      type: 'preview-error',
+      message: reason && reason.message ? reason.message : 'Promesse rejetée',
+      line: 0,
+      column: 0,
+      stack: reason && reason.stack ? reason.stack : null
+    }, '*');
+  } catch (e) {}
+});`;
 }
 
-// Vide l'éditeur au premier focus si son contenu correspond au contenu initial
-function addClearOnFirstFocus(editor, initValue, name = '') {
-    if (!editor) return;
-    const handler = function() {
-        try {
-            const current = editor.getValue();
-            if (current === initValue) {
-                editor.setValue('');
-                // Retirer le listener AVANT de manipuler le focus pour éviter tout effet secondaire
-                editor.off('focus', handler);
-                // positionner le curseur au début et s'assurer du focus
-                setTimeout(() => {
-                    try {
-                        editor.focus();
-                        if (typeof editor.setCursor === 'function') {
-                            editor.setCursor(0, 0);
-                        }
-                        if (typeof editor.scrollIntoView === 'function') {
-                            editor.scrollIntoView({ line: 0, ch: 0 }, 100);
-                        }
-                    } catch (e) {
-                        console.warn('Could not set cursor/focus after clear:', e);
-                    }
-                }, 0);
-                console.log(`${name} editor: cleared on first focus`);
-                showNotification(`${name} vidé — vous pouvez commencer à coder`, 'success');
-            }
-        } catch (e) {
-            console.warn('addClearOnFirstFocus error:', e);
-        }
-    };
-    editor.on('focus', handler);
-}
+function buildPreviewDocument(html, css, js) {
+  const { bodyHtml, headCss } = getPreviewBodyHtml(html);
+  const mergedCss = [headCss, css].filter((part) => part && part.trim()).join("\n\n");
+  const styleBlock = `html, body { margin: 0; padding: 0; }
+    ${mergedCss}`;
 
-function downloadFile(content, filename, type = 'text/plain') {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-// ----------  INITIALISATION DES ÉDITEURS  ----------
-function initCodeMirror() {
-    console.log('Initialisation de CodeMirror...');
-    const baseOptions = {
-        lineNumbers: true,
-        theme: currentTheme,
-        lineWrapping: true,
-        indentUnit: 2,
-        tabSize: 2,
-        matchBrackets: true,
-        autoCloseBrackets: true,
-        styleActiveLine: true,
-        viewportMargin: Infinity,
-        readOnly: false
-    };
-
-    try {
-        htmlEditor = CodeMirror.fromTextArea($('#htmlEditor'), { ...baseOptions, mode: 'htmlmixed' });
-        htmlEditor.setValue('');
-        console.log('Éditeur HTML initialisé');
-    } catch (error) {
-        console.error('Erreur initialisation HTML:', error);
-    }
-
-    try {
-        cssEditor = CodeMirror.fromTextArea($('#cssEditor'), { ...baseOptions, mode: 'css' });
-        cssEditor.setValue('');
-        console.log('Éditeur CSS initialisé');
-    } catch (error) {
-        console.error('Erreur initialisation CSS:', error);
-    }
-
-    try {
-        jsEditor = CodeMirror.fromTextArea($('#jsEditor'), { ...baseOptions, mode: 'javascript' });
-        jsEditor.setValue('');
-        console.log('Éditeur JS initialisé');
-    } catch (error) {
-        console.error('Erreur initialisation JS:', error);
-    }
-
-    // Activer l'éditeur HTML par défaut
-    showActiveEditor('html');
-    console.log('initCodeMirror: tous les éditeurs initialisés');
-}
-    
-function showActiveEditor(type) {
-    // Gérer les onglets
-    const tabs = $$('.tab');
-    tabs.forEach(tab => {
-        if (tab.getAttribute('data-editor') === type) {
-            tab.classList.add('active');
-        } else {
-            tab.classList.remove('active');
-        }
-    });
-
-    // Gérer la visibilité des éditeurs
-    const editors = [
-        { editor: htmlEditor, id: 'html' },
-        { editor: cssEditor, id: 'css' },
-        { editor: jsEditor, id: 'js' }
-    ];
-
-    editors.forEach(({ editor, id }) => {
-        if (editor && editor.getWrapperElement) {
-            const wrapper = editor.getWrapperElement();
-            if (id === type) {
-                wrapper.classList.add('active');
-                // Rafraîchir et donner le focus
-                setTimeout(() => {
-                    editor.refresh();
-                    editor.focus();
-                }, 50);
-            } else {
-                wrapper.classList.remove('active');
-            }
-        }
-    });
-}
-
-
-
-// ----------  MISE À JOUR DE LA PRÉVISUALISATION  ----------
-function updatePreview() {
-    try {
-        const html = htmlEditor ? htmlEditor.getValue() : '';
-        const css = cssEditor ? cssEditor.getValue() : '';
-        const js = jsEditor ? jsEditor.getValue() : '';
-
-        // Nouvelle version : on injecte directement le JS dans l'iframe, sans validation préalable
-        const fullDocument = `
-<!DOCTYPE html>
-<html>
+  const beforeUserJs = `<!DOCTYPE html>
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>${css}</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    ${styleBlock}
+  </style>
 </head>
 <body>
-    ${html}
-    <script>
-        try {
-            ${js}
-        } catch(e) {
-            console.error('Erreur JS:', e);
-            document.body.innerHTML += '<div style="color: #e74c3c; padding: 10px; border: 1px solid #e74c3c; margin: 10px;">Erreur JS: ' + (e && e.message ? e.message : e) + '</div>';
-            try {
-                window.parent.postMessage({ type: 'preview-error', message: (e && e.message) ? e.message : String(e), line: e && (e.lineNumber || e.line), column: e && (e.columnNumber || e.column), stack: e && e.stack }, '*');
-            } catch (postE) {
-                console.warn('Unable to postMessage to parent from iframe catch:', postE);
-            }
-        }
-    <\/script>
+  ${bodyHtml}
+  <script>
+${getPreviewErrorHandlerScript()}
+  <\/script>
+  <script>
+`;
+  const afterUserJs = `
+  <\/script>
 </body>
 </html>`;
 
-        // Mettre à jour l'iframe
-        const iframe = $('#viewer');
-        if (iframe) {
-            iframe.srcdoc = fullDocument;
-            console.log('updatePreview: iframe.srcdoc mis à jour');
-        }
-
-        // Mettre à jour le statut
-        const status = $('#status');
-        if (status) {
-            status.textContent = 'Prévisualisation mise à jour';
-            setTimeout(() => {
-                status.textContent = 'Prêt';
-            }, 2000);
-        }
-    } catch (error) {
-        console.error('Erreur de prévisualisation:', error);
-        showNotification('Erreur dans le code', 'error');
-    }
+  // Ligne 1-based du début du JS utilisateur dans le document srcdoc
+  state.previewJsLineOffset = beforeUserJs.split("\n").length;
+  return beforeUserJs + js + afterUserJs;
 }
 
-// ----------  GESTION DES ONGLETS  ----------
-function setupTabs() {
-    const tabs = $$('.tab');
-    
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            // Retirer la classe active de tous les onglets
-            tabs.forEach(t => t.classList.remove('active'));
-            
-            // Ajouter la classe active à l'onglet cliqué
-            this.classList.add('active');
-            
-            // Afficher l'éditeur correspondant
-            const editorType = this.getAttribute('data-editor');
-            console.log('setupTabs: onglet cliqué =>', editorType);
-            showActiveEditor(editorType);
-            updatePreview();
-        });
-    });
-}
+function buildExportIndexHtml(htmlContent) {
+  let bodyHtml = htmlContent;
+  let title = "Projet";
 
-// ----------  GESTION DES BOUTONS  ----------
-function setupButtons() {
-    console.log('Configuration des boutons...');
-    
-    // Bouton de changement de thème
-    $('#themeToggle').addEventListener('click', function() {
-        const newTheme = currentTheme === 'dracula' ? 'mdn-like' : 'dracula';
-        currentTheme = newTheme;
-        
-        [htmlEditor, cssEditor, jsEditor].forEach(editor => {
-            if (editor) {
-                editor.setOption('theme', newTheme);
-            }
-        });
-        
-        // Changer l'icône
-        this.textContent = newTheme === 'dracula' ? '🌙' : '☀️';
-        
-        // Basculer la classe sur le body
-        document.body.classList.toggle('light', newTheme === 'mdn-like');
-        
-        showNotification(`Thème ${newTheme === 'dracula' ? 'sombre' : 'clair'} activé`);
-    });
-    
-    // Bouton Copier
-    $('#copyCode').addEventListener('click', function() {
-        const activeTab = $('.tab.active').getAttribute('data-editor');
-        let content = '';
-        
-        switch(activeTab) {
-            case 'html': content = htmlEditor.getValue(); break;
-            case 'css': content = cssEditor.getValue(); break;
-            case 'js': content = jsEditor.getValue(); break;
-        }
-        
-        navigator.clipboard.writeText(content)
-            .then(() => showNotification('Code copié !'))
-            .catch(() => showNotification('Erreur lors de la copie', 'error'));
-    });
-    
-    // Bouton Coller
-    $('#pasteCode').addEventListener('click', async function() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const activeTab = $('.tab.active').getAttribute('data-editor');
-            
-            switch(activeTab) {
-                case 'html': htmlEditor.replaceSelection(text); break;
-                case 'css': cssEditor.replaceSelection(text); break;
-                case 'js': jsEditor.replaceSelection(text); break;
-            }
-            
-            showNotification('Texte collé');
-            updatePreview();
-        } catch (error) {
-            showNotification('Impossible de coller', 'error');
-        }
-    });
-    
-    // Bouton Effacer l'éditeur actif
-    $('#clearCode').addEventListener('click', function() {
-        if (confirm('Effacer le contenu de l\'éditeur actif ?')) {
-            const activeTab = $('.tab.active').getAttribute('data-editor');
-            
-            switch(activeTab) {
-                case 'html': htmlEditor.setValue(''); break;
-                case 'css': cssEditor.setValue(''); break;
-                case 'js': jsEditor.setValue(''); break;
-            }
-            
-            showNotification('Éditeur effacé');
-            updatePreview();
-        }
-    });
-    
-    // Bouton Tout effacer
-    $('#clearAllCode').addEventListener('click', function() {
-        if (confirm('Effacer TOUS les éditeurs ?')) {
-            htmlEditor.setValue('');
-            cssEditor.setValue('');
-            jsEditor.setValue('');
-            showNotification('Tous les éditeurs ont été effacés');
-            updatePreview();
-        }
-    });
-    
-    // Bouton Sauvegarder
-    $('#saveCode').addEventListener('click', function() {
-        $('#saveModal').style.display = 'flex';
-        $('#filename').focus();
-    });
-    
-    // Sauvegarde - Confirmer
-    $('#confirmSaveBtn').addEventListener('click', function() {
-        const filename = $('#filename').value.trim() || 'code';
-        const activeTab = $('.tab.active').getAttribute('data-editor');
-        let content = '';
-        let extension = '';
-        
-        switch(activeTab) {
-            case 'html':
-                content = htmlEditor.getValue();
-                extension = '.html';
-                break;
-            case 'css':
-                content = cssEditor.getValue();
-                extension = '.css';
-                break;
-            case 'js':
-                content = jsEditor.getValue();
-                extension = '.js';
-                break;
-        }
-        
-        downloadFile(content, filename + extension);
-        $('#saveModal').style.display = 'none';
-        showNotification('Fichier sauvegardé');
-    });
-    
-    // Sauvegarde - Annuler
-    $('#cancelSaveBtn').addEventListener('click', function() {
-        $('#saveModal').style.display = 'none';
-    });
-    
-    // Export ZIP
-    $('#saveProjectBtn').addEventListener('click', function() {
-        $('#exportZipModal').style.display = 'flex';
-        updateZipPreview();
-    });
-    
-    // Export ZIP - Annuler
-    $('#cancelExportZipBtn').addEventListener('click', function() {
-        $('#exportZipModal').style.display = 'none';
-    });
-    
-    // Export ZIP - Confirmer
-    $('#confirmExportZipBtn').addEventListener('click', function() {
-        exportProjectAsZip();
-    });
-
-    // Bouton Debug (affiche des infos utiles pour le diagnostic)
-    const debugBtn = $('#debugBtn');
-    if (debugBtn) {
-        debugBtn.addEventListener('click', function() {
-            console.log('=== DEBUG INFO ===');
-            console.log('HTML Editor:', htmlEditor ? 'OK' : 'NULL');
-            console.log('CSS Editor:', cssEditor ? 'OK' : 'NULL');
-            console.log('JS Editor:', jsEditor ? 'OK' : 'NULL');
-            console.log('Current Theme:', currentTheme);
-            console.log('Active Tab:', $('.tab.active') ? $('.tab.active').getAttribute('data-editor') : 'none');
-            console.log('LocalStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('editor_')));
-            showNotification('Infos debug affichées dans la console', 'success');
-        });
-    }
-
-    // Bouton Aller à l'erreur (si une erreur a été transmise depuis l'iframe)
-    const gotoBtn = $('#gotoErrorBtn');
-    if (gotoBtn) {
-        gotoBtn.addEventListener('click', function() {
-            if (!lastPreviewError) {
-                showNotification('Aucune erreur d\'aperçu disponible', 'warning');
-                return;
-            }
-            // Activer l'onglet JS
-            const jsTab = $$('.tab').find(t => t.getAttribute('data-editor') === 'js');
-            if (jsTab) jsTab.click();
-            // Donner le focus et positionner le curseur si possible
-            if (jsEditor) {
-                jsEditor.focus();
-                const line = lastPreviewError.line ? Math.max(0, lastPreviewError.line - 1) : 0;
-                const ch = lastPreviewError.column ? Math.max(0, lastPreviewError.column - 1) : 0;
-                try {
-                    jsEditor.setCursor(line, ch);
-                    jsEditor.scrollIntoView({ line: line, ch: ch }, 100);
-                } catch (e) {
-                    console.warn('Impossible de naviguer à la position d\'erreur:', e);
-                }
-            }
-        });
-    }
-}
-
-// ----------  PRÉVISUALISATION ZIP  ----------
-function updateZipPreview() {
-    const folderName = $('#zipFolderName').value || 'mon_projet';
-    const includeReadme = $('#zipIncludeReadme').checked;
-    const showPreview = $('#zipPreviewStructure').checked;
-    
-    let preview = `${folderName}/\n`;
-    preview += `├── index.html\n`;
-    preview += `├── styles.css\n`;
-    preview += `└── script.js\n`;
-    
-    if (includeReadme) {
-        preview = `${folderName}/\n`;
-        preview += `├── index.html\n`;
-        preview += `├── styles.css\n`;
-        preview += `├── script.js\n`;
-        preview += `└── README.md`;
-    }
-    
-    $('#zipStructurePreview').textContent = preview;
-    $('#zipStructurePreview').style.display = showPreview ? 'block' : 'none';
-}
-
-// ----------  EXPORT ZIP  ----------
-async function exportProjectAsZip() {
+  if (isFullHtmlDocument(htmlContent)) {
     try {
-        // Charger JSZip si nécessaire
-        if (typeof JSZip === 'undefined') {
-            await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
-        }
-        
-        const folderName = $('#zipFolderName').value || 'mon_projet';
-        const includeReadme = $('#zipIncludeReadme').checked;
-        
-        const zip = new JSZip();
-        const folder = zip.folder(folderName);
-        
-        // Ajouter les fichiers
-        folder.file('index.html', htmlEditor.getValue());
-        folder.file('styles.css', cssEditor.getValue());
-        folder.file('script.js', jsEditor.getValue());
-        
-        // Ajouter README si demandé
-        if (includeReadme) {
-            const readmeContent = `# Projet ${folderName}\n\nGénéré avec l'éditeur HTML Temps Réel\n\n## Fichiers\n- index.html\n- styles.css\n- script.js`;
-            folder.file('README.md', readmeContent);
-        }
-        
-        // Générer le ZIP
-        const content = await zip.generateAsync({ type: 'blob' });
-        
-        // Télécharger
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(content);
-        a.download = `${folderName}.zip`;
-        a.click();
-        
-        // Nettoyer
-        URL.revokeObjectURL(a.href);
-        
-        $('#exportZipModal').style.display = 'none';
-        showNotification('Projet exporté en ZIP !');
-        
-    } catch (error) {
-        console.error('Erreur export ZIP:', error);
-        showNotification('Erreur lors de l\'export ZIP', 'error');
+      const doc = new DOMParser().parseFromString(htmlContent, "text/html");
+      bodyHtml = doc.body ? doc.body.innerHTML.trim() : htmlContent;
+      const titleNode = doc.querySelector("title");
+      if (titleNode && titleNode.textContent.trim()) {
+        title = titleNode.textContent.trim();
+      }
+    } catch {
+      bodyHtml = htmlContent;
     }
+  }
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(title)}</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+${bodyHtml}
+  <script src="script.js"><\/script>
+</body>
+</html>
+`;
 }
 
-function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
+function updatePreview() {
+  const html = state.htmlEditor.getValue();
+  const css = state.cssEditor.getValue();
+  const js = state.jsEditor.getValue();
+  const iframe = $("#viewer");
+
+  if (!iframe) return;
+
+  const totalSize = (html + css + js).length;
+  if (totalSize > 50000) {
+    showNotification(
+      "⚠️ Code très volumineux (>50KB) — performance réduite",
+      "warning",
+    );
+  }
+
+  state.lastPreviewError = null;
+  iframe.srcdoc = buildPreviewDocument(html, css, js);
+  setStatus("Aperçu mis à jour");
 }
 
-// ----------  GESTION DU REDIMENSIONNEMENT  ----------
-function setupResizer() {
-    const resizer = $('#resizer');
-    const editorPane = $('#editorPane');
-    const previewPane = $('#previewPane');
-    let isResizing = false;
-    
-    resizer.addEventListener('mousedown', function(e) {
-        isResizing = true;
-        document.body.style.cursor = 'col-resize';
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', function(e) {
-        if (!isResizing) return;
-        
-        const containerRect = $('.main').getBoundingClientRect();
-        const newWidth = e.clientX - containerRect.left;
-        
-        // Limites min/max
-        const minWidth = 200;
-        const maxWidth = containerRect.width - 200;
-        
-        if (newWidth >= minWidth && newWidth <= maxWidth) {
-            editorPane.style.width = newWidth + 'px';
-            editorPane.style.flex = 'none';
-            previewPane.style.flex = '1';
-        }
-    });
-    
-    document.addEventListener('mouseup', function() {
-        isResizing = false;
-        document.body.style.cursor = '';
-    });
+function schedulePreviewAndSave() {
+  clearTimeout(state.previewTimer);
+  clearTimeout(state.saveTimer);
+
+  state.previewTimer = setTimeout(updatePreview, 250);
+  state.saveTimer = setTimeout(saveProjectToStorage, 400);
 }
 
-// ----------  SAUVEGARDE AUTOMATIQUE  ----------
-function setupAutoSave() {
-    // Sauvegarder dans localStorage lors des changements
-    const saveToStorage = () => {
-        try {
-            localStorage.setItem('editor_html', htmlEditor.getValue());
-            localStorage.setItem('editor_css', cssEditor.getValue());
-            localStorage.setItem('editor_js', jsEditor.getValue());
-        } catch (error) {
-            console.warn('Impossible de sauvegarder dans localStorage');
-        }
+function saveProjectToStorage() {
+  const ok1 = safeStorageSet(STORAGE_KEYS.html, state.htmlEditor.getValue());
+  const ok2 = safeStorageSet(STORAGE_KEYS.css, state.cssEditor.getValue());
+  const ok3 = safeStorageSet(STORAGE_KEYS.js, state.jsEditor.getValue());
+
+  if (ok1 && ok2 && ok3) {
+    setStatus("Sauvegarde locale effectuée");
+  } else {
+    setStatus("Sauvegarde mémoire uniquement");
+  }
+}
+
+function restoreProject() {
+  const html = safeStorageGet(STORAGE_KEYS.html);
+  const css = safeStorageGet(STORAGE_KEYS.css);
+  const js = safeStorageGet(STORAGE_KEYS.js);
+
+  if (state.htmlEditor) state.htmlEditor.setValue(html ?? DEFAULT_PROJECT.html);
+  if (state.cssEditor) state.cssEditor.setValue(css ?? DEFAULT_PROJECT.css);
+  if (state.jsEditor) state.jsEditor.setValue(js ?? DEFAULT_PROJECT.js);
+
+  if (html !== null || css !== null || js !== null) {
+    showNotification("Projet restauré depuis la sauvegarde locale");
+  }
+}
+
+function looksLikeFullHtmlDocument(text) {
+  // Détecte si le texte ressemble à un document HTML complet
+  return /<!doctype html>|<html[\s>]|<head[\s>]|<body[\s>]|<style[\s>]|<script[\s>]/i.test(
+    text,
+  );
+}
+
+function splitCombinedHtmlDocument(input) {
+  // Parse et extrait HTML, CSS, JS d'un document complet
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input, "text/html");
+
+  // Extrait tous les blocs <style>
+  const styleNodes = [...doc.querySelectorAll("style")];
+  const css = styleNodes
+    .map((node) => node.textContent.trim())
+    .filter(Boolean)
+    .join("\n\n");
+
+  // Extrait tous les blocs <script> inline (pas src="...")
+  const scriptNodes = [...doc.querySelectorAll("script:not([src])")];
+  const js = scriptNodes
+    .map((node) => node.textContent.trim())
+    .filter(Boolean)
+    .join("\n\n");
+
+  // Supprime les balises <style> et <script> du DOM
+  styleNodes.forEach((node) => node.remove());
+  scriptNodes.forEach((node) => node.remove());
+
+  // Récupère le HTML nettoyé
+  let html = "";
+  if (doc.body && doc.body.innerHTML.trim()) {
+    html = doc.body.innerHTML.trim();
+  } else {
+    html = doc.documentElement
+      ? doc.documentElement.outerHTML.trim()
+      : input.trim();
+  }
+
+  return { html, css, js };
+}
+
+function applyPastedContent(html, css, js) {
+  // Remplît les trois éditeurs avec le contenu extrait
+  if (html) state.htmlEditor.setValue(html);
+  if (css) state.cssEditor.setValue(css);
+  if (js) state.jsEditor.setValue(js);
+  updatePreview();
+  showNotification("Document réparti en HTML/CSS/JS");
+}
+
+/**
+ * Tente de répartir un collage multi-langage.
+ * @returns {'distributed'|'declined'|'plain'} 
+ * distributed = réparti, declined = user a refusé (coller brut), plain = pas de doc combiné
+ */
+function tryDistributePastedDocument(text) {
+  if (!text || !looksLikeFullHtmlDocument(text)) return "plain";
+
+  const { html, css, js } = splitCombinedHtmlDocument(text);
+  const hasStyles = css && css.trim().length > 0;
+  const hasScripts = js && js.trim().length > 0;
+
+  if (!hasStyles && !hasScripts) return "plain";
+
+  if (
+    confirm(
+      "Document détecté avec HTML, CSS et JS.\nRépartir automatiquement dans les trois panneaux ?",
+    )
+  ) {
+    applyPastedContent(html, css, js);
+    return "distributed";
+  }
+
+  return "declined";
+}
+
+function createEditor(textareaSelector, mode) {
+  return CodeMirror.fromTextArea($(textareaSelector), {
+    mode,
+    theme: state.currentTheme,
+    lineNumbers: true,
+    lineWrapping: true,
+    indentUnit: 2,
+    tabSize: 2,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    styleActiveLine: true,
+    viewportMargin: Infinity,
+  });
+}
+
+function initEditors() {
+  const hasCodeMirror = typeof CodeMirror !== "undefined";
+
+  if (!hasCodeMirror) {
+    state.htmlEditor = makeTextareaAdapter("#htmlEditor");
+    state.cssEditor = makeTextareaAdapter("#cssEditor");
+    state.jsEditor = makeTextareaAdapter("#jsEditor");
+    enableTextareaFallback();
+  } else {
+    try {
+      state.htmlEditor = createEditor("#htmlEditor", "htmlmixed");
+      state.cssEditor = createEditor("#cssEditor", "css");
+      state.jsEditor = createEditor("#jsEditor", "javascript");
+
+      // Applique la classe .editor-ready APRÈS l'init CodeMirror
+      // pour masquer le textarea source sans affecter le DOM interne
+      $$(".editor-block").forEach((block) => {
+        block.classList.add("editor-ready");
+      });
+    } catch (error) {
+      console.error("CodeMirror init failed:", error);
+      state.htmlEditor = makeTextareaAdapter("#htmlEditor");
+      state.cssEditor = makeTextareaAdapter("#cssEditor");
+      state.jsEditor = makeTextareaAdapter("#jsEditor");
+      enableTextareaFallback();
+    }
+  }
+
+  const mapping = {
+    html: state.htmlEditor,
+    css: state.cssEditor,
+    js: state.jsEditor,
+  };
+
+  Object.entries(mapping).forEach(([key, editor]) => {
+    const panel = document.querySelector(`[data-editor-panel="${key}"]`);
+    const textarea = document.querySelector(`#${key}Editor`);
+
+    const handleFocus = () => {
+      state.activeEditor = key;
+      syncActiveButtons();
+      $$(".editor-block").forEach((block) =>
+        block.classList.remove("is-focused"),
+      );
+      if (panel) panel.classList.add("is-focused");
     };
-    
-    // Écouter les changements avec un délai
-    let saveTimeout;
-    const editors = [htmlEditor, cssEditor, jsEditor];
-    
-    editors.forEach(editor => {
-        if (editor) {
-            editor.on('change', () => {
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => {
-                    saveToStorage();
-                    updatePreview();
-                }, 500);
-            });
-        }
-    });
-    
-    // Restaurer depuis localStorage
-    try {
-        const savedHTML = localStorage.getItem('editor_html');
-        const savedCSS = localStorage.getItem('editor_css');
-        const savedJS = localStorage.getItem('editor_js');
-        
-        if (savedHTML) htmlEditor.setValue(savedHTML);
-        if (savedCSS) cssEditor.setValue(savedCSS);
-        if (savedJS) jsEditor.setValue(savedJS);
-        
-        if (savedHTML || savedCSS || savedJS) {
-            showNotification('Code restauré depuis la sauvegarde');
-        }
-    } catch (error) {
-        console.warn('Impossible de restaurer depuis localStorage');
+
+    if (editor && typeof editor.on === "function") {
+      editor.on("focus", handleFocus);
+      editor.on("change", schedulePreviewAndSave);
+    } else if (textarea) {
+      textarea.addEventListener("focus", handleFocus);
+      textarea.addEventListener("input", schedulePreviewAndSave);
     }
+  });
 }
 
-// ----------  INITIALISATION  ----------
-function init() {
-    console.log('Initialisation de l\'éditeur...');
-    
+function syncActiveButtons() {
+  $$(".switch-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.editor === state.activeEditor);
+  });
+}
+
+function setupEditorSwitches() {
+  $$(".switch-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.editor;
+      const editor = getEditorsMap()[target];
+      state.activeEditor = target;
+      syncActiveButtons();
+      if (editor) {
+        editor.focus();
+        if (typeof editor.refresh === "function") editor.refresh();
+      }
+    });
+  });
+}
+
+function setTheme(theme) {
+  state.currentTheme = theme;
+  document.body.classList.toggle("light", theme === "mdn-like");
+
+  [state.htmlEditor, state.cssEditor, state.jsEditor].forEach((editor) => {
+    if (editor) editor.setOption("theme", theme);
+  });
+
+  const toggle = $("#themeToggle");
+  if (toggle) toggle.textContent = theme === "dracula" ? "🌙" : "☀️";
+
+  safeStorageSet(STORAGE_KEYS.theme, theme);
+}
+
+function setupTheme() {
+  const savedTheme = safeStorageGet(STORAGE_KEYS.theme);
+  state.currentTheme = savedTheme || "dracula";
+  setTheme(state.currentTheme);
+
+  $("#themeToggle").addEventListener("click", () => {
+    const next = state.currentTheme === "dracula" ? "mdn-like" : "dracula";
+    setTheme(next);
+    showNotification(`Thème ${next === "dracula" ? "sombre" : "clair"} activé`);
+  });
+}
+
+function getCurrentFileInfo() {
+  switch (state.activeEditor) {
+    case "html":
+      return {
+        content: state.htmlEditor.getValue(),
+        extension: ".html",
+        mime: "text/html;charset=utf-8",
+      };
+    case "css":
+      return {
+        content: state.cssEditor.getValue(),
+        extension: ".css",
+        mime: "text/css;charset=utf-8",
+      };
+    case "js":
+      return {
+        content: state.jsEditor.getValue(),
+        extension: ".js",
+        mime: "application/javascript;charset=utf-8",
+      };
+    default:
+      return {
+        content: "",
+        extension: ".txt",
+        mime: "text/plain;charset=utf-8",
+      };
+  }
+}
+
+function setupButtons() {
+  $("#runPreviewBtn").addEventListener("click", () => {
+    updatePreview();
+    showNotification("Aperçu rafraîchi");
+  });
+
+  $("#copyCode").addEventListener("click", async () => {
+    const editor = getActiveEditorInstance();
+    if (!editor) return;
+
     try {
-        // Initialiser CodeMirror
-        initCodeMirror();
-        
-        // Configurer les onglets
-        setupTabs();
-        
-        // Configurer les boutons
-        setupButtons();
-        
-        // Configurer le redimensionnement
-        setupResizer();
-        
-        // Configurer la sauvegarde automatique
-        setupAutoSave();
-        
-        // Mettre à jour la prévisualisation initiale
-        setTimeout(updatePreview, 100);
-        
-        // Gestion des modals
-        setupModalHandlers();
-        
-        console.log('Éditeur initialisé avec succès');
-        showNotification('Éditeur prêt !');
-        
-    } catch (error) {
-        console.error('Erreur d\'initialisation:', error);
-        showNotification('Erreur d\'initialisation', 'error');
+      await navigator.clipboard.writeText(editor.getValue());
+      showNotification("Code copié");
+    } catch {
+      showNotification("Copie impossible", "error");
     }
+  });
+
+  $("#pasteCode").addEventListener("click", async () => {
+    const editor = getActiveEditorInstance();
+    if (!editor) return;
+
+    try {
+      const text = await navigator.clipboard.readText();
+      const result = tryDistributePastedDocument(text);
+      if (result === "distributed") return;
+      editor.replaceSelection(text);
+      schedulePreviewAndSave();
+      updatePreview();
+      showNotification("Code collé");
+    } catch {
+      showNotification("Collage impossible", "error");
+    }
+  });
+
+  $("#clearCode").addEventListener("click", () => {
+    const editor = getActiveEditorInstance();
+    if (!editor) return;
+
+    if (confirm(`Effacer l’éditeur ${state.activeEditor.toUpperCase()} ?`)) {
+      editor.setValue("");
+      updatePreview();
+      showNotification(`Éditeur ${state.activeEditor.toUpperCase()} vidé`);
+    }
+  });
+
+  $("#clearAllCode").addEventListener("click", () => {
+    if (!confirm("Effacer HTML, CSS et JS ?")) return;
+
+    state.htmlEditor.setValue("");
+    state.cssEditor.setValue("");
+    state.jsEditor.setValue("");
+    updatePreview();
+    showNotification("Tous les éditeurs ont été effacés");
+  });
+
+  $("#saveCode").addEventListener("click", () => openModal("#saveModal"));
+  $("#cancelSaveBtn").addEventListener("click", () => closeModal("#saveModal"));
+
+  $("#confirmSaveBtn").addEventListener("click", () => {
+    const baseName = ($("#filename").value || "mon-fichier")
+      .trim()
+      .replace(/[^\w\-]+/g, "-");
+    const { content, extension, mime } = getCurrentFileInfo();
+    downloadTextFile(content, `${baseName}${extension}`, mime);
+    closeModal("#saveModal");
+    showNotification("Fichier téléchargé");
+  });
+
+  $("#saveProjectBtn").addEventListener("click", () => {
+    updateZipPreview();
+    openModal("#exportZipModal");
+  });
+
+  $("#cancelExportZipBtn").addEventListener("click", () =>
+    closeModal("#exportZipModal"),
+  );
+  $("#confirmExportZipBtn").addEventListener("click", exportProjectAsZip);
+
+  $("#gotoErrorBtn").addEventListener("click", () => {
+    if (!state.lastPreviewError) {
+      showNotification("Aucune erreur JS récente", "warning");
+      return;
+    }
+
+    state.activeEditor = "js";
+    syncActiveButtons();
+    state.jsEditor.focus();
+
+    // line déjà normalisée en 1-based panneau JS (voir setupPreviewErrorChannel)
+    const line = Math.max(0, (state.lastPreviewError.line || 1) - 1);
+    const ch = Math.max(0, (state.lastPreviewError.column || 1) - 1);
+
+    try {
+      if (typeof state.jsEditor.setCursor === "function") {
+        state.jsEditor.setCursor({ line, ch });
+      }
+      if (typeof state.jsEditor.scrollIntoView === "function") {
+        state.jsEditor.scrollIntoView({ line, ch }, 120);
+      }
+      showNotification("Curseur déplacé vers l’erreur JS", "warning");
+    } catch {
+      showNotification("Navigation vers l’erreur impossible", "error");
+    }
+  });
+}
+
+function updateZipPreview() {
+  const folder =
+    ($("#zipFolderName").value || "mon_projet").trim() || "mon_projet";
+  const includeReadme = $("#zipIncludeReadme").checked;
+  const showPreview = $("#zipPreviewStructure").checked;
+  const node = $("#zipStructurePreview");
+
+  let lines = [
+    `${folder}/`,
+    `├── index.html`,
+    `├── styles.css`,
+    `└── script.js`,
+  ];
+
+  if (includeReadme) {
+    lines = [
+      `${folder}/`,
+      `├── index.html`,
+      `├── styles.css`,
+      `├── script.js`,
+      `└── README.md`,
+    ];
+  }
+
+  node.textContent = lines.join("\n");
+  node.classList.toggle("is-visible", showPreview);
+}
+
+async function exportProjectAsZip() {
+  try {
+    const folderName =
+      ($("#zipFolderName").value || "mon_projet").trim() || "mon_projet";
+    const includeReadme = $("#zipIncludeReadme").checked;
+
+    const zip = new JSZip();
+    const folder = zip.folder(folderName);
+
+    folder.file(
+      "index.html",
+      buildExportIndexHtml(state.htmlEditor.getValue()),
+    );
+    folder.file("styles.css", state.cssEditor.getValue());
+    folder.file("script.js", state.jsEditor.getValue());
+
+    if (includeReadme) {
+      folder.file(
+        "README.md",
+        `# ${folderName}
+
+Projet exporté depuis l’éditeur HTML temps réel.
+
+## Fichiers
+- index.html
+- styles.css
+- script.js`,
+      );
+    }
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    downloadBlob(blob, `${folderName}.zip`);
+    closeModal("#exportZipModal");
+    showNotification("Projet ZIP exporté");
+  } catch (error) {
+    console.error(error);
+    showNotification("Erreur pendant l’export ZIP", "error");
+  }
+}
+
+function openModal(selector) {
+  const modal = $(selector);
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+
+  const input = $("input", modal);
+  if (input) setTimeout(() => input.focus(), 20);
+}
+
+function closeModal(selector) {
+  const modal = $(selector);
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
 }
 
 function setupModalHandlers() {
-    // Fermer les modals en cliquant à l'extérieur
-    window.addEventListener('click', function(event) {
-        if (event.target === $('#saveModal')) {
-            $('#saveModal').style.display = 'none';
-        }
-        if (event.target === $('#exportZipModal')) {
-            $('#exportZipModal').style.display = 'none';
-        }
+  ["#saveModal", "#exportZipModal"].forEach((selector) => {
+    const modal = $(selector);
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) closeModal(selector);
     });
-    
-    // Écouter les changements dans le modal ZIP
-    $('#zipFolderName').addEventListener('input', updateZipPreview);
-    $('#zipIncludeReadme').addEventListener('change', updateZipPreview);
-    $('#zipPreviewStructure').addEventListener('change', updateZipPreview);
+  });
+
+  $("#zipFolderName").addEventListener("input", updateZipPreview);
+  $("#zipIncludeReadme").addEventListener("change", updateZipPreview);
+  $("#zipPreviewStructure").addEventListener("change", updateZipPreview);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeModal("#saveModal");
+      closeModal("#exportZipModal");
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      openModal("#saveModal");
+    }
+  });
 }
 
-// ----------  DÉMARRER L'APPLICATION  ----------
-document.addEventListener('DOMContentLoaded', init);
+function setupResizer() {
+  const resizer = $("#resizer");
+  const editorPane = $("#editorPane");
+  const container = $(".app-shell");
+
+  if (!resizer || !editorPane || !container) return;
+
+  resizer.addEventListener("mousedown", (event) => {
+    state.isResizing = true;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor =
+      window.innerWidth <= 980 ? "row-resize" : "col-resize";
+    event.preventDefault();
+  });
+
+  document.addEventListener("mousemove", (event) => {
+    if (!state.isResizing) return;
+
+    const rect = container.getBoundingClientRect();
+    const mobile = window.innerWidth <= 980;
+
+    if (mobile) {
+      const newHeight = event.clientY - rect.top;
+      const min = 180;
+      const max = rect.height - 180;
+
+      if (newHeight >= min && newHeight <= max) {
+        editorPane.style.flex = "none";
+        editorPane.style.height = `${newHeight}px`;
+      }
+      return;
+    }
+
+    const newWidth = event.clientX - rect.left;
+    const min = 260;
+    const max = rect.width - 260;
+
+    if (newWidth >= min && newWidth <= max) {
+      editorPane.style.flex = "none";
+      editorPane.style.width = `${newWidth}px`;
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    state.isResizing = false;
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+
+    // Refresh tous les éditeurs après resize pour éviter les problèmes de layout CodeMirror
+    [state.htmlEditor, state.cssEditor, state.jsEditor].forEach((editor) => {
+      if (editor && typeof editor.refresh === "function") {
+        editor.refresh();
+      }
+    });
+  });
+}
+
+function setupPreviewErrorChannel() {
+  window.addEventListener("message", (event) => {
+    const data = event.data;
+    if (!data || data.type !== "preview-error") return;
+
+    const rawLine = Number(data.line) || 0;
+    const offset = state.previewJsLineOffset || 0;
+    // Convertit lineno document srcdoc → lineno panneau JS (1-based)
+    const editorLine =
+      rawLine > 0 && offset > 0 ? Math.max(1, rawLine - offset + 1) : rawLine;
+
+    state.lastPreviewError = {
+      ...data,
+      line: editorLine,
+      column: Number(data.column) || 0,
+      rawLine,
+    };
+    setStatus(`Erreur JS: ${data.message || "inconnue"}`);
+    showNotification(
+      `Erreur aperçu: ${data.message || "Erreur JavaScript"}`,
+      "error",
+    );
+  });
+}
+
+function setupPasteHandlers() {
+  const editors = [state.htmlEditor, state.cssEditor, state.jsEditor];
+
+  editors.forEach((editor) => {
+    if (!editor || typeof editor.on !== "function") return;
+
+    editor.on("paste", (instance, event) => {
+      const text = event.clipboardData?.getData("text/plain") || "";
+      if (!text || !looksLikeFullHtmlDocument(text)) return;
+
+      const result = tryDistributePastedDocument(text);
+      if (result === "plain") return;
+
+      event.preventDefault();
+      if (result === "declined") {
+        instance.replaceSelection(text);
+      }
+    });
+  });
+}
+
+function init() {
+  initEditors();
+  restoreProject();
+  setupEditorSwitches();
+  setupTheme();
+  setupButtons();
+  setupModalHandlers();
+  setupResizer();
+  setupPasteHandlers();
+  setupPreviewErrorChannel();
+
+  syncActiveButtons();
+  state.htmlEditor.focus();
+  updatePreview();
+  setStatus("Éditeur prêt");
+  showNotification("Éditeur prêt");
+}
+
+document.addEventListener("DOMContentLoaded", init);
